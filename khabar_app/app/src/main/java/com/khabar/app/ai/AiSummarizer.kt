@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ai
+package com.khabar.app.ai
 
 import com.khabar.app.config.AppConfig
 import com.khabar.app.domain.model.SummaryLanguage

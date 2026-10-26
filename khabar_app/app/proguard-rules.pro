@@ -1,4 +1,4 @@
-﻿# Proguard rules for Khabar
+# Proguard rules for Khabar
 
 # Stack traces readable rakhne ke liye
 -keepattributes SourceFile,LineNumberTable,*Annotation*,Signature,InnerClasses,EnclosingMethod

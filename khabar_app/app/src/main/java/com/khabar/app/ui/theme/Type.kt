@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.theme
+package com.khabar.app.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

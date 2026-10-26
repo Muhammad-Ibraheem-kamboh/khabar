@@ -1,4 +1,4 @@
-﻿package com.khabar.app.rules
+package com.khabar.app.rules
 
 /**
  * Pure Kotlin email normalizer.

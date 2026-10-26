@@ -1,4 +1,4 @@
-﻿package com.khabar.app.data.local.entities
+package com.khabar.app.data.local.entities
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

@@ -1,4 +1,4 @@
-﻿package com.khabar.app.domain.model
+package com.khabar.app.domain.model
 
 data class ProgramGroup(
     val name: String,

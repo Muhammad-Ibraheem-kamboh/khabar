@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.settings
+package com.khabar.app.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

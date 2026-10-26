@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.onboarding
+package com.khabar.app.ui.onboarding
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape

@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.today
+package com.khabar.app.ui.today
 
 import android.content.Intent
 import android.provider.CalendarContract

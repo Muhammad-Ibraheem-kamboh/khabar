@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.mails
+package com.khabar.app.ui.mails
 
 import android.content.Intent
 import android.net.Uri

@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.navigation
+package com.khabar.app.ui.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContentTransitionScope

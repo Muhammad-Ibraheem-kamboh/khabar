@@ -1,4 +1,4 @@
-﻿package com.khabar.app.data.repository
+package com.khabar.app.data.repository
 
 import com.khabar.app.ai.OfflineSummarizer
 import com.khabar.app.data.local.dao.FeedbackDao

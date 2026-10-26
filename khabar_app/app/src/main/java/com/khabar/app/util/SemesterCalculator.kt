@@ -1,4 +1,4 @@
-﻿package com.khabar.app.util
+package com.khabar.app.util
 
 import java.time.LocalDate
 

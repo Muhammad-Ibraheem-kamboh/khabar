@@ -1,4 +1,4 @@
-﻿package com.khabar.app
+package com.khabar.app
 
 import android.app.Application
 import androidx.work.ExistingPeriodicWorkPolicy

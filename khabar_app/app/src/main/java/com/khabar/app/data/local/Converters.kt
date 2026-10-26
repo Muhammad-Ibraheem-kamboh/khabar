@@ -1,4 +1,4 @@
-﻿package com.khabar.app.data.local
+package com.khabar.app.data.local
 
 import androidx.room.TypeConverter
 import kotlinx.serialization.encodeToString

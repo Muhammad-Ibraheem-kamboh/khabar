@@ -1,4 +1,4 @@
-﻿package com.khabar.app.sources
+package com.khabar.app.sources
 
 import android.app.Notification
 import android.app.PendingIntent

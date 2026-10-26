@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.settings
+package com.khabar.app.ui.settings
 
 import android.content.Intent
 import android.net.Uri

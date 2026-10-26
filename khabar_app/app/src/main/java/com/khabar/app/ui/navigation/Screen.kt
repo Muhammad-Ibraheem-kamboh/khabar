@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.navigation
+package com.khabar.app.ui.navigation
 
 sealed class Screen(val route: String) {
     // Onboarding

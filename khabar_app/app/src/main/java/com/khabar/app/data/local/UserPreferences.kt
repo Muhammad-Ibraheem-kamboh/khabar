@@ -1,4 +1,4 @@
-﻿package com.khabar.app.data.local
+package com.khabar.app.data.local
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey

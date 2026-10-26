@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.theme
+package com.khabar.app.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme

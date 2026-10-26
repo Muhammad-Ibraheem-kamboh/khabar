@@ -1,4 +1,4 @@
-﻿package com.khabar.app.rules
+package com.khabar.app.rules
 
 import com.khabar.app.domain.model.ExtractedEntities
 import java.time.DayOfWeek

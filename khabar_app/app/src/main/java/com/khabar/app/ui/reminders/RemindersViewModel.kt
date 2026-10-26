@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.reminders
+package com.khabar.app.ui.reminders
 
 import android.app.AlarmManager
 import android.app.PendingIntent

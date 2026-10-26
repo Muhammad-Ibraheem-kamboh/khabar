@@ -1,4 +1,4 @@
-﻿package com.khabar.app.sources
+package com.khabar.app.sources
 
 import com.khabar.app.domain.model.RawMail
 import kotlinx.coroutines.flow.MutableSharedFlow

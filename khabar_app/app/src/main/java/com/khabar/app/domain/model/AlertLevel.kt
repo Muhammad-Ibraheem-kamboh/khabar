@@ -1,4 +1,4 @@
-﻿package com.khabar.app.domain.model
+package com.khabar.app.domain.model
 
 enum class AlertLevel(val displayName: String, val description: String) {
     IMPORTANT("Important", "Sound, heads-up banner, and vibration"),

@@ -1,4 +1,4 @@
-﻿package com.khabar.app.config
+package com.khabar.app.config
 
 import com.khabar.app.BuildConfig
 

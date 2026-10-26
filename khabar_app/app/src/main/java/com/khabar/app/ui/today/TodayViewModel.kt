@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.today
+package com.khabar.app.ui.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

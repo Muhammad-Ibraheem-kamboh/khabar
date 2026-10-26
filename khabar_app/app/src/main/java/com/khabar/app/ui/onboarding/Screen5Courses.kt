@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.onboarding
+package com.khabar.app.ui.onboarding
 
 import android.graphics.BitmapFactory
 import android.net.Uri

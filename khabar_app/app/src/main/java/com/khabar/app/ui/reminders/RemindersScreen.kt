@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.reminders
+package com.khabar.app.ui.reminders
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background

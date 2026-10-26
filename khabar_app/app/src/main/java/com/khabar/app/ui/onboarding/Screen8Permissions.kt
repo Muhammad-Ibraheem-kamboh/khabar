@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.onboarding
+package com.khabar.app.ui.onboarding
 
 import android.Manifest
 import android.app.AlarmManager

@@ -1,4 +1,4 @@
-﻿package com.khabar.app.data.repository
+package com.khabar.app.data.repository
 
 import com.khabar.app.config.AppConfig
 import com.khabar.app.data.local.dao.CourseDao

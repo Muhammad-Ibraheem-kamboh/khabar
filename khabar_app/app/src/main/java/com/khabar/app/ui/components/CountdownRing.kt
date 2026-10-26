@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ui.components
+package com.khabar.app.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box

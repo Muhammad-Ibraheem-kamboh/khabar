@@ -1,4 +1,4 @@
-﻿package com.khabar.app.notifications
+package com.khabar.app.notifications
 
 import android.app.AlarmManager
 import android.app.PendingIntent

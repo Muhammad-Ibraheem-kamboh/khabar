@@ -1,4 +1,4 @@
-﻿package com.khabar.app.di
+package com.khabar.app.di
 
 import android.content.Context
 import com.khabar.app.ai.AiSummarizer

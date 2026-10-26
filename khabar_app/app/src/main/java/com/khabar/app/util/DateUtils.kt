@@ -1,4 +1,4 @@
-﻿package com.khabar.app.util
+package com.khabar.app.util
 
 import com.khabar.app.domain.model.SummaryLanguage
 import java.time.Instant

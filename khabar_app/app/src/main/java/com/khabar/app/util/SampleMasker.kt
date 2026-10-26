@@ -1,4 +1,4 @@
-﻿package com.khabar.app.util
+package com.khabar.app.util
 
 import com.khabar.app.data.local.entities.MailEntity
 import kotlinx.serialization.json.Json

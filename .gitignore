@@ -1,3 +1,8 @@
+# Design export folders (kept on disk, untracked in git)
+/cupertino_native_assistant/
+/khabar_*/
+!/khabar_app/
+
 # Gradle & Build Artifacts
 .gradle/
 .kotlin/
@@ -16,6 +21,7 @@ local.properties
 .env
 *.key
 *.keystore
+*.jks
 
 # IDE & Editor files
 .idea/

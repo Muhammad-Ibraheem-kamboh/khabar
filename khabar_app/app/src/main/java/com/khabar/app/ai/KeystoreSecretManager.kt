@@ -1,4 +1,4 @@
-﻿package com.khabar.app.ai
+package com.khabar.app.ai
 
 import android.content.Context
 import android.content.SharedPreferences

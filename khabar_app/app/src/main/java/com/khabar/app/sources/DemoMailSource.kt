@@ -1,4 +1,4 @@
-﻿package com.khabar.app.sources
+package com.khabar.app.sources
 
 import android.content.Context
 import com.khabar.app.domain.model.MailCategory

@@ -1,4 +1,4 @@
-﻿package com.khabar.app.rules
+package com.khabar.app.rules
 
 import com.khabar.app.domain.model.MailBucket
 import com.khabar.app.domain.model.MailCategory
