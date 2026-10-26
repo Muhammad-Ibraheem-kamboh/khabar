@@ -1,4 +1,4 @@
-import java.util.Properties
+﻿import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -24,11 +24,11 @@ val aiModel = localProperties.getProperty("AI_MODEL", "") ?: ""
 val aiApiKey = localProperties.getProperty("AI_API_KEY", "") ?: ""
 
 android {
-    namespace = "com.letdigitalfly.ibamail"
+    namespace = "com.khabar.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.aistudio.khabar.kzrts"
+        applicationId = "com.khabar.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

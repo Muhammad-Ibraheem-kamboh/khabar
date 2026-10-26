@@ -1,7 +1,7 @@
-{
+﻿{
   "client_id": "REPLACE_WITH_MS_CLIENT_ID",
   "authorization_user_agent": "DEFAULT",
-  "redirect_uri": "msauth://com.letdigitalfly.ibamail/REPLACE_WITH_MS_SIGNATURE_HASH",
+  "redirect_uri": "msauth://com.khabar.app/REPLACE_WITH_MS_SIGNATURE_HASH",
   "authorities": [
     {
       "type": "AAD",

@@ -1,5 +1,7 @@
 # Gradle & Build Artifacts
 .gradle/
+.kotlin/
+*/.kotlin/
 build/
 */build/
 */*/build/

@@ -1,4 +1,4 @@
-# Proguard rules for Khabar
+﻿# Proguard rules for Khabar
 
 # Stack traces readable rakhne ke liye
 -keepattributes SourceFile,LineNumberTable,*Annotation*,Signature,InnerClasses,EnclosingMethod
@@ -15,7 +15,7 @@
 # --- WorkManager: KhabarApp.MailSyncWorker reflection se banta hai ---
 -keep class androidx.work.** { *; }
 -dontwarn androidx.work.**
--keep class com.letdigitalfly.ibamail.KhabarApp$MailSyncWorker {
+-keep class com.khabar.app.KhabarApp$MailSyncWorker {
     public <init>(android.content.Context, androidx.work.WorkerParameters);
 }
 -keep class * extends androidx.work.ListenableWorker {
@@ -23,8 +23,8 @@
 }
 
 # --- App ke data models (Room entities, domain models) ---
--keep class com.letdigitalfly.ibamail.data.local.** { *; }
--keep class com.letdigitalfly.ibamail.domain.model.** { *; }
+-keep class com.khabar.app.data.local.** { *; }
+-keep class com.khabar.app.domain.model.** { *; }
 
 # --- kotlinx.serialization (Json.parseToJsonElement / List<String> encode-decode) ---
 -dontwarn kotlinx.serialization.**
