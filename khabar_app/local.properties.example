@@ -1,0 +1,16 @@
+## This file must NOT be checked into Version Control Systems.
+# Location of the SDK. This is only used by Gradle.
+# For example: sdk.dir=C\:\\Users\\Username\\AppData\\Local\\Android\\Sdk
+
+# Microsoft Graph / MSAL (Optional)
+MS_CLIENT_ID=
+MS_SIGNATURE_HASH=
+
+# Gmail API (Optional)
+GMAIL_ENABLED=false
+GMAIL_CLIENT_ID=
+
+# AI Summaries (Optional - Groq, Gemini, OpenRouter, etc.)
+AI_BASE_URL=https://api.groq.com/openai/v1
+AI_MODEL=qwen/qwen3.8-27b
+AI_API_KEY=

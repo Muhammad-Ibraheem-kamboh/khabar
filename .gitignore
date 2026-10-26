@@ -1,0 +1,28 @@
+# Gradle & Build Artifacts
+.gradle/
+build/
+*/build/
+*/*/build/
+*.apk
+*.aab
+*.dex
+
+# Local properties & secrets
+local.properties
+*/local.properties
+*/*/local.properties
+.env
+*.key
+*.keystore
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Android Captures & Native build
+captures/
+.externalNativeBuild/
+.cxx/

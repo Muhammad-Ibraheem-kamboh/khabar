@@ -1,0 +1,36 @@
+{
+  "language": "roman_urdu",
+  "dates": {
+    "today": "Aaj",
+    "tomorrow": "Kal",
+    "yesterday": "Kal guzra",
+    "days_remaining": "%d din baqi",
+    "hours_remaining": "%d ghante baqi",
+    "minutes_remaining": "%d minute baqi",
+    "at_time": "%s baje",
+    "monday": "Peer",
+    "tuesday": "Mangal",
+    "wednesday": "Budh",
+    "thursday": "Jumerat",
+    "friday": "Juma",
+    "saturday": "Hafta",
+    "sunday": "Itwar"
+  },
+  "headlines": {
+    "CLASS_CHANGE": "{course} ki class {when} cancel hai",
+    "EXAM": "{course} ka quiz {when} hai",
+    "DEADLINE": "{course} assignment jama karein {when}",
+    "FEE": "Fee challan jama karne ki aakhri tareekh {when}",
+    "REGISTRATION": "Course registration {when} shuru hogi",
+    "RESULT": "Imtehan ke nataij aur grades ka ailan",
+    "ATTENDANCE": "{course} mein attendance ki kami ka notice",
+    "CAREER": "Internship aur job ka naya moqa",
+    "EVENT": "Campus event: {topic}",
+    "GENERAL": "Ahem notice: {topic}"
+  },
+  "key_points_fallback": [
+    "Aap ki university ki taraf se ahem update.",
+    "Waqt aur venue ki tafseelat zaroor check karein.",
+    "Baqi waqt ke andar zaroori action lein."
+  ]
+}

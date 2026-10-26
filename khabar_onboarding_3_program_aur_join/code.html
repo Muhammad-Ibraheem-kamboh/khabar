@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-surface" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Khabar - Onboarding</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Inter Font -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary": "#006b27",
+            "on-tertiary-container": "#f7fff2",
+            "on-secondary": "#ffffff",
+            "tertiary-fixed-dim": "#53e16f",
+            "surface": "#faf8fd",
+            "background": "#faf8fd",
+            "on-tertiary-fixed-variant": "#00531c",
+            "surface-variant": "#e3e2e6",
+            "surface-container": "#efedf2",
+            "on-secondary-fixed-variant": "#3631b4",
+            "tertiary-container": "#008733",
+            "secondary-container": "#6664e4",
+            "surface-container-highest": "#e3e2e6",
+            "tertiary-fixed": "#72fe88",
+            "on-secondary-fixed": "#0c006a",
+            "on-error-container": "#93000a",
+            "surface-bright": "#faf8fd",
+            "surface-container-low": "#f5f3f7",
+            "primary-container": "#0070eb",
+            "primary": "#0058bc",
+            "error": "#ba1a1a",
+            "outline": "#717786",
+            "inverse-primary": "#adc6ff",
+            "surface-dim": "#dbd9de",
+            "surface-container-high": "#e9e7ec",
+            "surface-tint": "#005bc1",
+            "surface-container-lowest": "#ffffff",
+            "on-primary-container": "#fefcff",
+            "on-background": "#1b1b1f",
+            "on-primary-fixed": "#001a41",
+            "on-secondary-container": "#fffbff",
+            "on-primary": "#ffffff",
+            "on-primary-fixed-variant": "#004493",
+            "on-surface-variant": "#414755",
+            "on-error": "#ffffff",
+            "primary-fixed-dim": "#adc6ff",
+            "secondary-fixed-dim": "#c2c1ff",
+            "secondary": "#4c4aca",
+            "primary-fixed": "#d8e2ff",
+            "error-container": "#ffdad6",
+            "on-tertiary": "#ffffff",
+            "inverse-on-surface": "#f2f0f4",
+            "on-surface": "#1b1b1f",
+            "inverse-surface": "#2f3034",
+            "outline-variant": "#c1c6d7",
+            "on-tertiary-fixed": "#002107",
+            "secondary-fixed": "#e2dfff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "1.5rem",
+            "gutter": "1rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1.25rem",
+            "space-md": "1rem",
+            "margin": "1.25rem"
+          },
+          "fontFamily": {
+            "footnote": ["Inter"],
+            "large-title": ["Inter"],
+            "title-1": ["Inter"],
+            "callout": ["Inter"],
+            "title-2": ["Inter"],
+            "caption-2": ["Inter"],
+            "subhead": ["Inter"],
+            "headline": ["Inter"],
+            "body": ["Inter"],
+            "caption-1": ["Inter"]
+          },
+          "fontSize": {
+            "footnote": ["13px", {"lineHeight": "18px", "letterSpacing": "-0.08px", "fontWeight": "400"}],
+            "large-title": ["34px", {"lineHeight": "41px", "letterSpacing": "0.37px", "fontWeight": "700"}],
+            "title-1": ["28px", {"lineHeight": "34px", "letterSpacing": "0.36px", "fontWeight": "700"}],
+            "callout": ["16px", {"lineHeight": "21px", "letterSpacing": "-0.32px", "fontWeight": "400"}],
+            "title-2": ["22px", {"lineHeight": "28px", "letterSpacing": "-0.26px", "fontWeight": "700"}],
+            "caption-2": ["11px", {"lineHeight": "13px", "letterSpacing": "0.07px", "fontWeight": "400"}],
+            "subhead": ["15px", {"lineHeight": "20px", "letterSpacing": "-0.24px", "fontWeight": "400"}],
+            "headline": ["17px", {"lineHeight": "22px", "letterSpacing": "-0.41px", "fontWeight": "600"}],
+            "body": ["17px", {"lineHeight": "22px", "letterSpacing": "-0.41px", "fontWeight": "400"}],
+            "caption-1": ["12px", {"lineHeight": "16px", "letterSpacing": "0px", "fontWeight": "500"}]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    /* Native iOS smooth tap feedback */
+    .tap-highlight-none {
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body class="h-full bg-[#F2F2F7] text-on-surface antialiased flex flex-col justify-between select-none">
+<!-- Main Mobile Canvas Container (simulates 393px width iOS frame) -->
+<div class="w-full max-w-[420px] mx-auto min-h-screen flex flex-col justify-between bg-[#F2F2F7] relative shadow-2xl">
+<!-- Top Navigation Bar & Progress Indicator -->
+<header class="sticky top-0 z-40 bg-[#F2F2F7]/85 backdrop-blur-xl px-5 pt-3 pb-2 transition-all">
+<div class="flex items-center justify-between h-11">
+<!-- Back Navigation Button -->
+<button aria-label="Peechay jaien" class="w-10 h-10 -ml-2.5 flex items-center justify-center rounded-full text-primary hover:opacity-70 active:opacity-40 transition-opacity tap-highlight-none" type="button">
+<span class="material-symbols-outlined text-[24px]">arrow_back_ios_new</span>
+</button>
+<!-- 8-Dot Progress Indicator (Step 3 active) -->
+<div aria-label="Qadam 3 az 8" aria-valuemax="8" aria-valuemin="1" aria-valuenow="3" class="flex items-center space-x-1.5" role="progressbar">
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant/60"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant/60"></div>
+<div class="w-4 h-1.5 rounded-full bg-primary-container transition-all duration-300"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant/60"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant/60"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant/60"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant/60"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-outline-variant/60"></div>
+</div>
+<!-- Trailing Placeholder for Symmetry -->
+<div class="w-10 h-10 -mr-2.5 opacity-0 pointer-events-none"></div>
+</div>
+</header>
+<!-- Scrollable Content Canvas -->
+<main class="flex-1 px-5 pt-2 pb-32 overflow-y-auto">
+<!-- iOS Large Title Section -->
+<section class="mb-5">
+<h1 class="font-large-title text-large-title text-on-surface tracking-tight">
+          Aap kis program mein hain?
+        </h1>
+<p class="font-subhead text-subhead text-on-surface-variant mt-1.5 leading-snug">
+          Taake sirf aap ke batch aur department ki emails filter hon.
+        </p>
+</section>
+<!-- iOS Search Bar -->
+<section class="mb-5">
+<div class="relative flex items-center w-full h-[38px] bg-[#E3E3E8] rounded-xl px-3 transition-colors focus-within:bg-[#dedee3]">
+<span class="material-symbols-outlined text-[#8E8E93] text-[20px] mr-2">search</span>
+<input class="w-full bg-transparent border-0 p-0 font-subhead text-subhead text-on-surface placeholder-[#8E8E93] focus:ring-0 focus:outline-none" placeholder="Program dhoondhein (e.g. BBA, CS)..." type="text"/>
+</div>
+</section>
+<!-- Section: Undergraduate Programs (Inset Grouped) -->
+<section class="mb-5">
+<h2 class="font-footnote text-footnote text-[#6C6C70] uppercase font-semibold px-4 pb-1.5 tracking-wider">
+          UNDERGRADUATE
+        </h2>
+<div class="bg-surface-container-lowest rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] overflow-hidden">
+<!-- Row 1: BBA (Selected) -->
+<div class="flex items-center justify-between px-4 min-h-[48px] active:bg-surface-container transition-colors cursor-pointer select-none">
+<span class="font-headline text-headline text-on-surface font-semibold">BBA</span>
+<span class="material-symbols-outlined text-primary-container text-[22px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<div class="h-[0.5px] bg-[#C6C6C8]/40 ml-4"></div>
+<!-- Row 2: BS Accounting & Finance -->
+<div class="flex items-center justify-between px-4 min-h-[48px] active:bg-surface-container transition-colors cursor-pointer select-none">
+<span class="font-body text-body text-on-surface">BS Accounting &amp; Finance</span>
+</div>
+<div class="h-[0.5px] bg-[#C6C6C8]/40 ml-4"></div>
+<!-- Row 3: BS Business Analytics -->
+<div class="flex items-center justify-between px-4 min-h-[48px] active:bg-surface-container transition-colors cursor-pointer select-none">
+<span class="font-body text-body text-on-surface">BS Business Analytics</span>
+</div>
+<div class="h-[0.5px] bg-[#C6C6C8]/40 ml-4"></div>
+<!-- Row 4: BS Computer Science -->
+<div class="flex items-center justify-between px-4 min-h-[48px] active:bg-surface-container transition-colors cursor-pointer select-none">
+<span class="font-body text-body text-on-surface">BS Computer Science</span>
+</div>
+<div class="h-[0.5px] bg-[#C6C6C8]/40 ml-4"></div>
+<!-- Row 5: BS Economics -->
+<div class="flex items-center justify-between px-4 min-h-[48px] active:bg-surface-container transition-colors cursor-pointer select-none">
+<span class="font-body text-body text-on-surface">BS Economics</span>
+</div>
+</div>
+</section>
+<!-- Section: Graduate Programs (Inset Grouped) -->
+<section class="mb-6">
+<h2 class="font-footnote text-footnote text-[#6C6C70] uppercase font-semibold px-4 pb-1.5 tracking-wider">
+          GRADUATE
+        </h2>
+<div class="bg-surface-container-lowest rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] overflow-hidden">
+<!-- Row 1: MBA -->
+<div class="flex items-center justify-between px-4 min-h-[48px] active:bg-surface-container transition-colors cursor-pointer select-none">
+<span class="font-body text-body text-on-surface">MBA</span>
+</div>
+<div class="h-[0.5px] bg-[#C6C6C8]/40 ml-4"></div>
+<!-- Row 2: MBA Executive -->
+<div class="flex items-center justify-between px-4 min-h-[48px] active:bg-surface-container transition-colors cursor-pointer select-none">
+<span class="font-body text-body text-on-surface">MBA Executive</span>
+</div>
+<div class="h-[0.5px] bg-[#C6C6C8]/40 ml-4"></div>
+<!-- Row 3: MS Finance -->
+<div class="flex items-center justify-between px-4 min-h-[48px] active:bg-surface-container transition-colors cursor-pointer select-none">
+<span class="font-body text-body text-on-surface">MS Finance</span>
+</div>
+</div>
+</section>
+<!-- Section: Admission Cohort / Joining Date -->
+<section class="mb-3">
+<label class="block font-subhead text-subhead font-semibold text-[#6C6C70] px-1 mb-2">
+          Aap ne kab join kiya?
+        </label>
+<!-- iOS Wheel Picker Simulation Card -->
+<div class="bg-surface-container-lowest rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] p-3 relative overflow-hidden">
+<div class="grid grid-cols-2 gap-3 relative py-1">
+<!-- Column 1: Semester Term -->
+<div class="flex flex-col items-center justify-center space-y-1 relative">
+<span class="font-subhead text-subhead text-outline-variant/70 py-0.5 select-none scale-90">Spring</span>
+<div class="w-full bg-[#0070eb]/10 border border-[#0070eb]/20 rounded-xl py-2 px-3 flex items-center justify-center shadow-sm">
+<span class="font-headline text-headline text-primary-container font-semibold">Fall</span>
+</div>
+<span class="font-subhead text-subhead text-outline-variant/70 py-0.5 select-none scale-90">Summer</span>
+</div>
+<!-- Column 2: Cohort Year -->
+<div class="flex flex-col items-center justify-center space-y-1 relative">
+<span class="font-subhead text-subhead text-outline-variant/70 py-0.5 select-none scale-90">2023</span>
+<div class="w-full bg-[#0070eb]/10 border border-[#0070eb]/20 rounded-xl py-2 px-3 flex items-center justify-center shadow-sm">
+<span class="font-headline text-headline text-primary-container font-semibold">2024</span>
+</div>
+<span class="font-subhead text-subhead text-outline-variant/70 py-0.5 select-none scale-90">2025</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Soft Blue Tinted Recommendation Card -->
+<section class="mt-3">
+<div class="bg-[#EFF6FF] border border-[#BFDBFE] rounded-2xl p-4 flex flex-col gap-2.5 shadow-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[20px]" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<p class="font-subhead text-subhead text-on-surface font-medium leading-tight">
+              Aap shayad 5th semester (Junior) mein hain
+            </p>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-2.5 pt-1">
+<button class="bg-[#0070eb] text-white px-4 py-2 rounded-xl font-subhead text-subhead font-semibold active:opacity-75 transition-opacity tap-highlight-none" type="button">
+              Sahi hai
+            </button>
+<button class="bg-white text-on-surface-variant px-4 py-2 rounded-xl font-subhead text-subhead font-medium border border-outline-variant/40 active:bg-gray-50 transition-colors tap-highlight-none" type="button">
+              Theek karein
+            </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Fixed Dock Action Container (iOS Safe Area clearance) -->
+<footer class="fixed bottom-0 left-0 right-0 max-w-[420px] mx-auto z-50 bg-[#F2F2F7]/85 backdrop-blur-xl px-5 pt-3 pb-8 shadow-[0_-8px_24px_rgba(0,0,0,0.05)]">
+<button class="w-full h-14 bg-primary-container hover:bg-primary text-on-primary font-headline text-headline font-semibold rounded-[14px] flex items-center justify-center active:scale-[0.98] transition-all duration-150 shadow-md shadow-primary-container/20 tap-highlight-none" type="button">
+        Aage
+      </button>
+</footer>
+</div>
+</body></html>
