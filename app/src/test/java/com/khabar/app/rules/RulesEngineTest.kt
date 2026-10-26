@@ -154,8 +154,7 @@ class RulesEngineTest {
         val paths = listOf(
             "src/main/assets/sample_mails.json",
             "app/src/main/assets/sample_mails.json",
-            "../app/src/main/assets/sample_mails.json",
-            "khabar_app/app/src/main/assets/sample_mails.json"
+            "../app/src/main/assets/sample_mails.json"
         )
         for (p in paths) {
             val f = File(p)

@@ -1,7 +1,6 @@
 # Design export folders (kept on disk, untracked in git)
 /cupertino_native_assistant/
 /khabar_*/
-!/khabar_app/
 
 # Gradle & Build Artifacts
 .gradle/
@@ -10,8 +9,10 @@
 build/
 */build/
 */*/build/
+app/build/
 *.apk
 *.aab
+*.ap_
 *.dex
 
 # Local properties & secrets
