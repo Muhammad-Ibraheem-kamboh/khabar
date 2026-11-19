@@ -1,0 +1,36 @@
+{
+  "language": "urdu",
+  "dates": {
+    "today": "آج",
+    "tomorrow": "کل",
+    "yesterday": "گزشتہ کل",
+    "days_remaining": "%d دن باقی",
+    "hours_remaining": "%d گھنٹے باقی",
+    "minutes_remaining": "%d منٹ باقی",
+    "at_time": "%s بجے",
+    "monday": "پیر",
+    "tuesday": "منگل",
+    "wednesday": "بدھ",
+    "thursday": "جمعرات",
+    "friday": "جمعہ",
+    "saturday": "ہفتہ",
+    "sunday": "اتوار"
+  },
+  "headlines": {
+    "CLASS_CHANGE": "{course} کی کلاس {when} منسوخ ہے",
+    "EXAM": "{course} کا امتحان یا کوئز {when} ہوگا",
+    "DEADLINE": "{course} اسائنمنٹ جمع کروانے کی آخری تاریخ {when}",
+    "FEE": "فیس چالان جمع کروانے کی تاریخ {when}",
+    "REGISTRATION": "کورس رجسٹریشن کا آغاز {when}",
+    "RESULT": "امتحانات کے نتائج اور گریڈز کا اعلان",
+    "ATTENDANCE": "{course} میں حاضری کی کمی کا انتباہ",
+    "CAREER": "انٹرن شپ اور ملازمت کا موقع",
+    "EVENT": "کیمپس تقریب: {topic}",
+    "GENERAL": "اہم نوٹس: {topic}"
+  },
+  "key_points_fallback": [
+    "یونیورسٹی کی جانب سے اہم تعلیمی اطلاع۔",
+    "وقت اور کمرے کی تفصیلات لازمی چیک کریں۔",
+    "مقررہ وقت سے قبل مطلوبہ کارروائی مکمل کریں۔"
+  ]
+}

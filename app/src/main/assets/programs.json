@@ -1,0 +1,169 @@
+{
+  "groups": [
+    {
+      "name": "Undergraduate",
+      "programs": [
+        {
+          "id": "bba",
+          "name": "BBA",
+          "level": "Undergraduate",
+          "aliases": ["BBA", "Bachelor of Business Administration"]
+        },
+        {
+          "id": "bs_af",
+          "name": "BS Accounting and Finance",
+          "level": "Undergraduate",
+          "aliases": ["BSAF", "BS A&F", "BS Accounting and Finance", "Accounting & Finance", "Accounting and Finance"]
+        },
+        {
+          "id": "bs_ba",
+          "name": "BS Business Analytics",
+          "level": "Undergraduate",
+          "aliases": ["BSBA", "BS Business Analytics", "Business Analytics"]
+        },
+        {
+          "id": "bs_cs",
+          "name": "BS Computer Science",
+          "level": "Undergraduate",
+          "aliases": ["BSCS", "BS CS", "BS (Computer Science)", "Computer Science", "CS"]
+        },
+        {
+          "id": "bs_math",
+          "name": "BS Mathematics",
+          "level": "Undergraduate",
+          "aliases": ["BS Math", "BS Mathematics", "Mathematics"]
+        },
+        {
+          "id": "bs_eco",
+          "name": "BS Economics",
+          "level": "Undergraduate",
+          "aliases": ["BS Eco", "BS Economics", "Economics"]
+        },
+        {
+          "id": "bs_eco_math",
+          "name": "BS Economics and Mathematics",
+          "level": "Undergraduate",
+          "aliases": ["BS EM", "BS Economics & Mathematics", "BS Economics and Mathematics", "Eco-Math"]
+        },
+        {
+          "id": "bs_ssla",
+          "name": "BS Social Sciences and Liberal Arts",
+          "level": "Undergraduate",
+          "aliases": ["SSLA", "BS SSLA", "Social Sciences and Liberal Arts", "Social Sciences"]
+        }
+      ]
+    },
+    {
+      "name": "Graduate",
+      "programs": [
+        {
+          "id": "mba",
+          "name": "MBA",
+          "level": "Graduate",
+          "aliases": ["MBA", "Master of Business Administration"]
+        },
+        {
+          "id": "mba_exec",
+          "name": "MBA Executive",
+          "level": "Graduate",
+          "aliases": ["EMBA", "MBA Executive", "Executive MBA"]
+        },
+        {
+          "id": "ms_fin",
+          "name": "MS Finance",
+          "level": "Graduate",
+          "aliases": ["MS Finance", "MS Fin"]
+        },
+        {
+          "id": "ms_mkt",
+          "name": "MS Marketing",
+          "level": "Graduate",
+          "aliases": ["MS Marketing", "MS MKT"]
+        },
+        {
+          "id": "ms_mgmt",
+          "name": "MS Management",
+          "level": "Graduate",
+          "aliases": ["MS Management", "MS MGT"]
+        },
+        {
+          "id": "ms_ibf",
+          "name": "MS Islamic Banking and Finance",
+          "level": "Graduate",
+          "aliases": ["MS IBF", "MS Islamic Banking and Finance"]
+        },
+        {
+          "id": "ms_cs",
+          "name": "MS Computer Science",
+          "level": "Graduate",
+          "aliases": ["MSCS", "MS CS", "MS Computer Science"]
+        },
+        {
+          "id": "ms_ds",
+          "name": "MS Data Science",
+          "level": "Graduate",
+          "aliases": ["MSDS", "MS Data Science", "Data Science"]
+        },
+        {
+          "id": "ms_ai",
+          "name": "MS Artificial Intelligence",
+          "level": "Graduate",
+          "aliases": ["MSAI", "MS AI", "MS Artificial Intelligence"]
+        },
+        {
+          "id": "ms_math",
+          "name": "MS Mathematics",
+          "level": "Graduate",
+          "aliases": ["MS Math", "MS Mathematics"]
+        },
+        {
+          "id": "ms_eco",
+          "name": "MS Economics",
+          "level": "Graduate",
+          "aliases": ["MS Economics", "MS Eco"]
+        },
+        {
+          "id": "ms_dev",
+          "name": "MS Development Studies",
+          "level": "Graduate",
+          "aliases": ["MS Development Studies", "Development Studies"]
+        },
+        {
+          "id": "ms_journ",
+          "name": "MS Journalism",
+          "level": "Graduate",
+          "aliases": ["MS Journalism", "Journalism"]
+        },
+        {
+          "id": "ms_psych",
+          "name": "MS General Psychology",
+          "level": "Graduate",
+          "aliases": ["MS Psychology", "MS General Psychology", "Psychology"]
+        }
+      ]
+    },
+    {
+      "name": "PhD",
+      "programs": [
+        {
+          "id": "phd_cs",
+          "name": "PhD Computer Science",
+          "level": "PhD",
+          "aliases": ["PhD CS", "PhD Computer Science"]
+        },
+        {
+          "id": "phd_eco",
+          "name": "PhD Economics",
+          "level": "PhD",
+          "aliases": ["PhD Economics", "PhD Eco"]
+        },
+        {
+          "id": "phd_math",
+          "name": "PhD Mathematics",
+          "level": "PhD",
+          "aliases": ["PhD Mathematics", "PhD Math"]
+        }
+      ]
+    }
+  ]
+}

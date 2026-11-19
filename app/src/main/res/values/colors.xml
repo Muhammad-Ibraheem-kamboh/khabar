@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#007AFF</color>
+    <color name="primary_container">#0070EB</color>
+    <color name="background_light">#F2F2F7</color>
+    <color name="surface_light">#FFFFFF</color>
+    <color name="text_primary_light">#000000</color>
+    <color name="text_secondary_light">#6C6C70</color>
+    <color name="separator_light">#C6C6C8</color>
+
+    <color name="background_dark">#000000</color>
+    <color name="surface_dark">#1C1C1E</color>
+    <color name="surface_elevated_dark">#2C2C2E</color>
+    <color name="text_primary_dark">#FFFFFF</color>
+    <color name="text_secondary_dark">#8E8E93</color>
+    <color name="separator_dark">#38383A</color>
+
+    <!-- Categories -->
+    <color name="cat_class_change">#FF3B30</color>
+    <color name="cat_exam">#AF52DE</color>
+    <color name="cat_deadline">#FF9500</color>
+    <color name="cat_fee">#30B0C7</color>
+    <color name="cat_registration">#FFCC00</color>
+    <color name="cat_result">#34C759</color>
+    <color name="cat_attendance">#A2845E</color>
+    <color name="cat_career">#5856D6</color>
+    <color name="cat_event">#FF2D55</color>
+    <color name="cat_general">#8E8E93</color>
+</resources>

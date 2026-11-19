@@ -1,0 +1,36 @@
+{
+  "language": "en",
+  "dates": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "yesterday": "Yesterday",
+    "days_remaining": "%d days left",
+    "hours_remaining": "%d hours left",
+    "minutes_remaining": "%d minutes left",
+    "at_time": "at %s",
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday"
+  },
+  "headlines": {
+    "CLASS_CHANGE": "{course} class is cancelled {when}",
+    "EXAM": "{course} quiz or exam {when}",
+    "DEADLINE": "{course} assignment due {when}",
+    "FEE": "Fee payment due {when}",
+    "REGISTRATION": "Course registration opens {when}",
+    "RESULT": "Grades and exam results announced",
+    "ATTENDANCE": "{course} attendance shortage warning",
+    "CAREER": "Internship and job opportunity",
+    "EVENT": "Campus event: {topic}",
+    "GENERAL": "Notice: {topic}"
+  },
+  "key_points_fallback": [
+    "Important update regarding your academic obligations.",
+    "Check specific timing and room locations in key facts below.",
+    "Take necessary action before the specified deadline."
+  ]
+}
