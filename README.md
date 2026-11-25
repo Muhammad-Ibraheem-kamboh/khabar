@@ -35,8 +35,13 @@ University students receive dozens of emails daily from administrations, teacher
   - **Zero-Fluff Direct Answer Protocol:** Eliminates AI conversational pleasantries and filler, formatting schedules and announcements into clean, mobile-optimized key-value cards.
   - **Native Markdown AST Parser:** Custom recursive descent parser supporting headings, bold-italic typography, blockquotes, inline chips, and code blocks without layout shifts.
   - **On-Device Offline Fallback:** Campus memory template-based summarizer requiring zero internet or API keys.
-- **Portals & Sakai LMS 2FA WebSync:**
-  - Embedded secure WebView synchronization for university portals (Sakai LMS, UMS) with Microsoft Authenticator 2FA support and auto course extraction.
+- **Authoritative Portals & Sakai LMS 2FA WebSync:**
+  - Embedded secure WebView synchronization for university portals (IBA Sakai LMS, UMS) with Microsoft Authenticator 2FA support.
+  - **Recursive Multi-Frame / Iframe Scraper (`PortalJsExtractor`):** Recursively penetrates child iframes, Sakai portlet windows, tab aria-labels, site navigation menus, and PeopleSoft enrollment tables.
+  - **Continuous Background Auto-Sync:** Zero-tap persistence; automatically detects student full name, program, ERP ID, and enrolled course codes with sections and timings while browsing the portal.
+  - **Authoritative Hierarchy & Deduplication:** LMS is treated as the official authority over manual input; auto-resolves section mismatches, normalizes canonical course codes (`UPPER(REPLACE(code, ' ', ''))`), and removes duplicate course rows.
+  - **Timetable Clash Detection:** Algorithmic verification that detects overlapping class time slots across enrolled courses.
+  - **1-Tap "Done" Action:** Prominent top-bar synchronization button that commits all page changes, verifies differences, and returns to the app dashboard with settings pre-populated.
 - **24/7 Time Flexibility & Alarms:**
   - Custom clock dial (12-hour AM/PM TimePickerDialog) for daily briefing delivery with independent enable/disable toggles.
   - Flexible deadline alarm lead-time picker with custom minutes and hours.

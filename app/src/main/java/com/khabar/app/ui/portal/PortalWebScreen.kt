@@ -128,6 +128,10 @@ data class PortalErrorState(
     val isDnsFailure: Boolean
 )
 
+/**
+ * Holds detected student profile identity and course schedule differences discovered
+ * during portal browsing, used for authoritative synchronization and clash warnings.
+ */
 data class PortalDiscrepancyReport(
     val detectedName: String? = null,
     val currentName: String = "",
@@ -237,6 +241,10 @@ object PortalContentParser {
     }
 }
 
+/**
+ * Robust multi-frame JavaScript extractor capable of penetrating child iframes,
+ * Sakai LMS portlet windows, tab aria-labels, site navigation menus, and PeopleSoft tables.
+ */
 object PortalJsExtractor {
     val EXTRACT_SCRIPT = """
         (function() {
