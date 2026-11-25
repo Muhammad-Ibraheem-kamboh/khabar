@@ -16,7 +16,10 @@ import com.khabar.app.data.local.dao.ChatSessionInfo
 import com.khabar.app.data.local.entities.ChatMessageEntity
 import com.khabar.app.data.repository.ChatRepository
 import com.khabar.app.util.VoiceAssistantManager
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +27,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import android.util.Base64
 import java.util.UUID
 
 class KhabriChatViewModel(
@@ -31,10 +37,12 @@ class KhabriChatViewModel(
     val voiceAssistantManager: VoiceAssistantManager,
     private val secretManager: KeystoreSecretManager,
     private val openAiClient: OpenAiCompatibleClient,
-    private val userPreferences: UserPreferences
+    private val userPreferences: UserPreferences,
+    private val aiDefectManager: com.khabar.app.ai.AiDefectManager? = null
 ) : ViewModel() {
 
-    private val _currentSessionId = MutableStateFlow("default")
+    // Fresh chat session by default (like ChatGPT)
+    private val _currentSessionId = MutableStateFlow("chat_" + UUID.randomUUID().toString())
     val currentSessionId: StateFlow<String> = _currentSessionId.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -71,6 +79,18 @@ class KhabriChatViewModel(
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
+    private val _lastFailedCanRetry = MutableStateFlow(false)
+    val lastFailedCanRetry: StateFlow<Boolean> = _lastFailedCanRetry.asStateFlow()
+
+    private data class PendingRetryPayload(
+        val query: String,
+        val imageUri: String?,
+        val imageBase64: String?,
+        val ocrText: String?
+    )
+    private var lastFailedPayload: PendingRetryPayload? = null
+    private var activeGenerationJob: Job? = null
+
     // Attached Image & OCR
     private val _attachedBitmap = MutableStateFlow<Bitmap?>(null)
     val attachedBitmap: StateFlow<Bitmap?> = _attachedBitmap.asStateFlow()
@@ -80,6 +100,12 @@ class KhabriChatViewModel(
 
     private val _attachedOcrText = MutableStateFlow<String?>(null)
     val attachedOcrText: StateFlow<String?> = _attachedOcrText.asStateFlow()
+
+    private val _attachedIsPdf = MutableStateFlow(false)
+    val attachedIsPdf: StateFlow<Boolean> = _attachedIsPdf.asStateFlow()
+
+    private val _isAttachingDocument = MutableStateFlow(false)
+    val isAttachingDocument: StateFlow<Boolean> = _isAttachingDocument.asStateFlow()
 
     private val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
@@ -137,6 +163,7 @@ class KhabriChatViewModel(
 
     fun clearStatusMessage() {
         _statusMessage.value = null
+        _lastFailedCanRetry.value = false
     }
 
     fun toggleHistoryDrawer() {
@@ -148,18 +175,38 @@ class KhabriChatViewModel(
     }
 
     fun startNewChat() {
-        _currentSessionId.value = "chat_" + UUID.randomUUID().toString().take(8)
+        stopGeneration()
+        _currentSessionId.value = "chat_" + UUID.randomUUID().toString()
         _inputText.value = ""
         _statusMessage.value = null
+        _lastFailedCanRetry.value = false
+        lastFailedPayload = null
         removeAttachedImage()
         _showHistoryDrawer.value = false
     }
 
+    fun startNewChatIfNotEmpty() {
+        if (messages.value.isNotEmpty()) {
+            startNewChat()
+        }
+    }
+
     fun switchSession(sessionId: String) {
+        stopGeneration()
         _currentSessionId.value = sessionId
         _statusMessage.value = null
+        _lastFailedCanRetry.value = false
+        lastFailedPayload = null
         removeAttachedImage()
         _showHistoryDrawer.value = false
+    }
+
+    fun renameSession(sessionId: String, newTitle: String) {
+        val cleaned = newTitle.trim()
+        if (cleaned.isBlank()) return
+        viewModelScope.launch {
+            chatRepository.renameSession(sessionId, cleaned)
+        }
     }
 
     fun deleteSession(sessionId: String) {
@@ -172,25 +219,27 @@ class KhabriChatViewModel(
     }
 
     fun attachImage(context: Context, uri: Uri) {
+        attachDocumentOrImage(context, uri)
+    }
+
+    fun attachDocumentOrImage(context: Context, uri: Uri) {
         viewModelScope.launch {
+            _isAttachingDocument.value = true
+            _statusMessage.value = null
             try {
-                _attachedImageUri.value = uri.toString()
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val bitmap = BitmapFactory.decodeStream(stream)
-                    _attachedBitmap.value = bitmap
-                    if (bitmap != null) {
-                        val image = InputImage.fromBitmap(bitmap, 0)
-                        textRecognizer.process(image)
-                            .addOnSuccessListener { visionText ->
-                                _attachedOcrText.value = visionText.text
-                            }
-                            .addOnFailureListener {
-                                _attachedOcrText.value = null
-                            }
-                    }
-                }
+                val result = com.khabar.app.util.DocumentScannerHelper.processDocumentUri(context, uri)
+                _attachedIsPdf.value = result.isPdf
+                // Only store displayable imageUri when not a PDF so ChatBubble never renders a broken Coil image
+                _attachedImageUri.value = if (result.isPdf) null else uri.toString()
+                _attachedBitmap.value = result.previewBitmap
+                _attachedOcrText.value = if (result.rawText.isNotBlank()) {
+                    "[Document Content: ${result.detectedTitle}]\n${result.rawText}"
+                } else null
             } catch (e: Exception) {
-                e.printStackTrace()
+                _statusMessage.value = "Could not load attachment: ${e.message ?: "Unsupported file"}"
+                removeAttachedImage()
+            } finally {
+                _isAttachingDocument.value = false
             }
         }
     }
@@ -199,6 +248,12 @@ class KhabriChatViewModel(
         _attachedBitmap.value = null
         _attachedImageUri.value = null
         _attachedOcrText.value = null
+        _attachedIsPdf.value = false
+    }
+
+    fun attachPortalPageContext(title: String, extractedText: String) {
+        _attachedOcrText.value = "[PORTAL / LMS SYNCED CONTENT: $title]\n$extractedText"
+        _inputText.value = "Analyze portal page: summarize active announcements, deadlines, and schedule."
     }
 
     suspend fun testProviderConfig(
@@ -233,12 +288,96 @@ class KhabriChatViewModel(
         _statusMessage.value = null
     }
 
+    fun stopGeneration() {
+        activeGenerationJob?.cancel()
+        activeGenerationJob = null
+        _isGenerating.value = false
+    }
+
+    fun retryLastMessage() {
+        val pending = lastFailedPayload ?: return
+        if (_isGenerating.value) return
+
+        _statusMessage.value = null
+        _lastFailedCanRetry.value = false
+
+        activeGenerationJob = viewModelScope.launch {
+            _isGenerating.value = true
+            try {
+                val result = chatRepository.sendMessage(
+                    userQuery = pending.query,
+                    sessionId = _currentSessionId.value,
+                    imageUri = pending.imageUri,
+                    imageBase64 = pending.imageBase64,
+                    ocrExtractedText = pending.ocrText,
+                    explicitLanguage = _chatLanguage.value,
+                    skipUserInsert = true
+                )
+                result.onSuccess { reply ->
+                    lastFailedPayload = null
+                    _statusMessage.value = null
+                    _lastFailedCanRetry.value = false
+                    syncActiveModelFromSecretManager()
+                    if (_autoVoiceEnabled.value && reply.isNotBlank()) {
+                        voiceAssistantManager.speak(reply, _chatLanguage.value)
+                    }
+                }.onFailure { err ->
+                    _lastFailedCanRetry.value = true
+                    _statusMessage.value = err.message ?: "Request failed. Tap Retry."
+                }
+            } catch (_: CancellationException) {
+                // User stopped generation cleanly
+            } finally {
+                _isGenerating.value = false
+            }
+        }
+    }
+
+    fun regenerateLastResponse() {
+        if (_isGenerating.value) return
+        _statusMessage.value = null
+        _lastFailedCanRetry.value = false
+
+        activeGenerationJob = viewModelScope.launch {
+            _isGenerating.value = true
+            try {
+                val result = chatRepository.regenerateLastResponse(
+                    sessionId = _currentSessionId.value,
+                    explicitLanguage = _chatLanguage.value
+                )
+                result.onSuccess { reply ->
+                    syncActiveModelFromSecretManager()
+                    if (_autoVoiceEnabled.value && reply.isNotBlank()) {
+                        voiceAssistantManager.speak(reply, _chatLanguage.value)
+                    }
+                }.onFailure { err ->
+                    _lastFailedCanRetry.value = true
+                    _statusMessage.value = err.message ?: "Could not regenerate response."
+                }
+            } catch (_: CancellationException) {
+                // Cancelled cleanly
+            } finally {
+                _isGenerating.value = false
+            }
+        }
+    }
+
+    private fun syncActiveModelFromSecretManager() {
+        val currentProv = secretManager.getAiProvider()
+        _activeProvider.value = currentProv
+        if (currentProv != KeystoreSecretManager.PROVIDER_AUTO) {
+            _activeModel.value = secretManager.getModelForProvider(currentProv)
+        }
+    }
+
     fun sendMessage(customText: String? = null) {
         val textToSend = (customText ?: _inputText.value).trim()
         val imageUri = _attachedImageUri.value
         val ocrText = _attachedOcrText.value
+        val bitmap = _attachedBitmap.value
+        val isPdf = _attachedIsPdf.value
 
-        if (textToSend.isBlank() && ocrText.isNullOrBlank()) return
+        if (textToSend.isBlank() && ocrText.isNullOrBlank() && bitmap == null) return
         if (_isGenerating.value) return
 
         if (!hasAnyApiKey() && !_activeProvider.value.equals(KeystoreSecretManager.PROVIDER_OLLAMA, ignoreCase = true)) {
@@ -249,24 +388,61 @@ class KhabriChatViewModel(
         _inputText.value = ""
         removeAttachedImage()
         _statusMessage.value = null
+        _lastFailedCanRetry.value = false
 
-        viewModelScope.launch {
+        activeGenerationJob = viewModelScope.launch {
             _isGenerating.value = true
-            val result = chatRepository.sendMessage(
-                userQuery = textToSend,
-                sessionId = _currentSessionId.value,
-                imageUri = imageUri,
-                ocrExtractedText = ocrText,
-                explicitLanguage = _chatLanguage.value
-            )
-            _isGenerating.value = false
+            try {
+                // Encode image off the main UI thread to prevent jank on high-res photos
+                val imageBase64 = if (bitmap != null && !isPdf) {
+                    withContext(Dispatchers.Default) {
+                        try {
+                            encodeBitmapToBase64(bitmap, maxDim = 1280, quality = 85)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            null
+                        }
+                    }
+                } else null
 
-            result.onSuccess { reply ->
-                if (_autoVoiceEnabled.value && reply.isNotBlank()) {
-                    voiceAssistantManager.speak(reply, _chatLanguage.value)
+                val effectiveQuery = if (textToSend.isBlank() && isPdf) {
+                    "Summarize key details, dates, amounts, and actions from this PDF document."
+                } else {
+                    textToSend
                 }
-            }.onFailure { err ->
-                _statusMessage.value = err.message
+
+                lastFailedPayload = PendingRetryPayload(
+                    query = effectiveQuery,
+                    imageUri = imageUri,
+                    imageBase64 = imageBase64,
+                    ocrText = ocrText
+                )
+
+                val result = chatRepository.sendMessage(
+                    userQuery = effectiveQuery,
+                    sessionId = _currentSessionId.value,
+                    imageUri = imageUri,
+                    imageBase64 = imageBase64,
+                    ocrExtractedText = ocrText,
+                    explicitLanguage = _chatLanguage.value
+                )
+
+                result.onSuccess { reply ->
+                    lastFailedPayload = null
+                    _statusMessage.value = null
+                    _lastFailedCanRetry.value = false
+                    syncActiveModelFromSecretManager()
+                    if (_autoVoiceEnabled.value && reply.isNotBlank()) {
+                        voiceAssistantManager.speak(reply, _chatLanguage.value)
+                    }
+                }.onFailure { err ->
+                    _lastFailedCanRetry.value = true
+                    _statusMessage.value = err.message ?: "Request failed. Tap Retry."
+                }
+            } catch (_: CancellationException) {
+                // Cancelled cleanly by user tapping Stop
+            } finally {
+                _isGenerating.value = false
             }
         }
     }
@@ -324,9 +500,62 @@ class KhabriChatViewModel(
         }
     }
 
+    fun reportMessageMistake(message: ChatMessageEntity, reason: String) {
+        viewModelScope.launch {
+            val history = messages.value
+            val msgIndex = history.indexOfFirst { it.id == message.id }
+            val userQuery = if (msgIndex > 0) {
+                history.take(msgIndex).lastOrNull { it.role == "user" }?.content ?: ""
+            } else ""
+
+            aiDefectManager?.recordUserCorrection(
+                userPrompt = userQuery.ifBlank { "User query" },
+                aiPreviousResponse = message.content,
+                userCritique = reason,
+                provider = _activeProvider.value,
+                model = _activeModel.value
+            )
+            _statusMessage.value = "Mistake logged to AI Quality Vault! Khabri will adapt."
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         voiceAssistantManager.stopSpeaking()
         voiceAssistantManager.stopListening()
+    }
+
+    companion object {
+        fun encodeBytesToBase64(bytes: ByteArray): String {
+            return try {
+                Base64.encodeToString(bytes, Base64.NO_WRAP)
+            } catch (_: Throwable) {
+                java.util.Base64.getEncoder().encodeToString(bytes)
+            }
+        }
+
+        fun encodeBitmapToBase64(bitmap: Bitmap, maxDim: Int = 1280, quality: Int = 85): String {
+            val width = bitmap.width
+            val height = bitmap.height
+            val scaledBitmap = if (width > maxDim || height > maxDim) {
+                val ratio = width.toFloat() / height.toFloat()
+                val targetWidth: Int
+                val targetHeight: Int
+                if (ratio > 1f) {
+                    targetWidth = maxDim
+                    targetHeight = (maxDim / ratio).toInt().coerceAtLeast(1)
+                } else {
+                    targetHeight = maxDim
+                    targetWidth = (maxDim * ratio).toInt().coerceAtLeast(1)
+                }
+                Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
+            } else {
+                bitmap
+            }
+
+            val outputStream = ByteArrayOutputStream()
+            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+            return encodeBytesToBase64(outputStream.toByteArray())
+        }
     }
 }
