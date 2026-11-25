@@ -30,10 +30,17 @@ University students receive dozens of emails daily from administrations, teacher
   - **Important (Zaroori):** Urgent, action-oriented, course-specific or broadcast announcements.
   - **Good to Know (Jaanna Acha):** Society updates, campus-wide events matching student interests.
   - **Hidden (Chhupa):** Mails for other programs, batches, or unselected interests.
-- **Multilingual Summarizer:**
-  - AI-powered summaries via any OpenAI-compatible provider (Groq, Gemini, OpenRouter) in **English, Roman Urdu, or Urdu**.
-  - On-device offline template-based summarizer fallback with zero network requirements.
-  - App chrome remains in clean, simple English.
+- **Multilingual Summarizer & Khabri AI (خبری):**
+  - AI-powered summaries and deep multi-turn chat assistant via any OpenAI-compatible provider (Groq, Gemini, OpenRouter) in **English, Roman Urdu, or Urdu**.
+  - **Zero-Fluff Direct Answer Protocol:** Eliminates AI conversational pleasantries and filler, formatting schedules and announcements into clean, mobile-optimized key-value cards.
+  - **Native Markdown AST Parser:** Custom recursive descent parser supporting headings, bold-italic typography, blockquotes, inline chips, and code blocks without layout shifts.
+  - **On-Device Offline Fallback:** Campus memory template-based summarizer requiring zero internet or API keys.
+- **Portals & Sakai LMS 2FA WebSync:**
+  - Embedded secure WebView synchronization for university portals (Sakai LMS, UMS) with Microsoft Authenticator 2FA support and auto course extraction.
+- **24/7 Time Flexibility & Alarms:**
+  - Custom clock dial (12-hour AM/PM TimePickerDialog) for daily briefing delivery with independent enable/disable toggles.
+  - Flexible deadline alarm lead-time picker with custom minutes and hours.
+  - Battery-friendly AlarmManager registration that cleanly cancels alarms when toggled off.
 - **Instant Mode (Notification Listener):** Zero-setup mode using Android's `NotificationListenerService` to immediately capture and parse incoming Outlook and Gmail notifications without requiring OAuth credentials.
 - **Synthesized Alert Sounds:**
   - 16-bit 44.1 kHz PCM sine audio synthesizer with smoothed attack and decay curves.
@@ -140,15 +147,14 @@ AI_API_KEY=your_api_key_here
 
 ---
 
-## 🧪 Developer & Demo Tools
+## 🧪 Developer & Diagnostic Tools
 
-To test the complete workflow without connecting real email accounts:
+To test and diagnose background automation and notification pipelines:
 1. Open **Settings > Developer Tools**.
-2. Tap **Load Sample Profile** (loads Ali Raza, BSCS Fall 23, enrolled in CS201, CS204, MTH201, SS102).
-3. Tap **Load All 30 Realistic Sample Mails** (populates the inbox with categorized emails).
-4. Tap any **Simulate Incoming Mail** category to trigger live rules processing and notifications.
-5. Tap **Trigger Daily Digest** to preview the morning summary notification.
-6. Inspect the **Notification Inspector** to view raw extras captured by the Notification Listener service.
+2. Tap **Purge Any Demo / Sample Emails & Reminders** to wipe test artifacts and ensure a clean production mailbox.
+3. Tap any **Simulate Incoming Mail** category to trigger live rules processing, synthesized PCM alert tones, and system notifications.
+4. Tap **Trigger Daily Digest** to immediately preview the morning summary notification.
+5. Inspect the **Notification Inspector** to view raw extras captured by the Notification Listener service.
 
 ---
 
