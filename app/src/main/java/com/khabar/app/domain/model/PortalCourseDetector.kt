@@ -299,6 +299,105 @@ object PortalCourseDetector {
     }
 
     /**
+     * Normalizes a course code string to strict canonical alphanumeric representation:
+     * e.g. "CSE 141", "cse-141", "CSE_141" -> "CSE141"
+     */
+    fun normalizeCourseCode(raw: String): String {
+        return raw.uppercase().replace(Regex("""[^A-Z0-9]"""), "").trim()
+    }
+
+    data class DetectedStudentProfile(
+        val fullName: String? = null,
+        val erpId: String? = null,
+        val programName: String? = null
+    )
+
+    /**
+     * Extracts student identity (Name, ERP / Student ID, Academic Program) from Sakai LMS or UMS page content.
+     */
+    fun detectStudentProfile(text: String): DetectedStudentProfile? {
+        if (text.isBlank()) return null
+
+        var detectedName: String? = null
+        var detectedErp: String? = null
+        var detectedProgram: String? = null
+
+        // 1. Sakai LMS Profile pattern: "36930 Muhammad Ibraheem - 36930"
+        val sakaiProfileRegex = Regex("""\b(\d{4,6})\s+([A-Za-z\s.]{3,35})\s*-\s*\1\b""")
+        val sakaiMatch = sakaiProfileRegex.find(text)
+        if (sakaiMatch != null) {
+            detectedErp = sakaiMatch.groupValues[1].trim()
+            detectedName = cleanStudentName(sakaiMatch.groupValues[2].trim())
+        }
+
+        // 2. Generic Student Name / Full Name / Name patterns (e.g. from UMS portal header)
+        if (detectedName == null) {
+            val nameRegex = Regex("""(?i)(?:Student Name|Full Name|Name)\s*[:.\-–—]\s*([A-Za-z\s.]{3,35})""")
+            val nameMatch = nameRegex.find(text)
+            if (nameMatch != null) {
+                detectedName = cleanStudentName(nameMatch.groupValues[1].trim())
+            }
+        }
+
+        // 3. ERP / Student ID
+        if (detectedErp == null) {
+            val erpRegex = Regex("""(?i)(?:ERP|Student ID|Roll No|ERP ID)\s*[:.\-–—]?\s*(\d{4,6})\b""")
+            val erpMatch = erpRegex.find(text)
+            if (erpMatch != null) {
+                detectedErp = erpMatch.groupValues[1].trim()
+            }
+        }
+
+        // 4. Academic Program (BS Mathematics, BSCS, BBA, MS, etc.)
+        val programRegex = Regex("""(?i)\b(BS\s*(?:Computer Science|Mathematics|Maths|Economics|Accounting\s*(?:&|and)\s*Finance|Social Sciences|Artificial Intelligence|Data Science)|BBA|MS\s*(?:CS|DS|Maths)|EMBA|MBA)\b""")
+        val progMatch = programRegex.find(text)
+        if (progMatch != null) {
+            detectedProgram = normalizeProgramName(progMatch.groupValues[1].trim())
+        }
+
+        if (detectedName == null && detectedErp == null && detectedProgram == null) {
+            return null
+        }
+
+        return DetectedStudentProfile(
+            fullName = detectedName,
+            erpId = detectedErp,
+            programName = detectedProgram
+        )
+    }
+
+    private fun cleanStudentName(raw: String): String? {
+        val cleaned = raw.replace(Regex("""\s+"""), " ").trim()
+        val lower = cleaned.lowercase()
+        if (lower.contains("login") || lower.contains("logout") || lower.contains("portal") ||
+            lower.contains("sakai") || lower.contains("overview") || lower.contains("profile") ||
+            lower.contains("system") || lower.contains("institute") || lower.contains("welcome")
+        ) {
+            return null
+        }
+        if (cleaned.length < 3) return null
+        return cleaned.split(" ").filter { it.isNotBlank() }.joinToString(" ") { word ->
+            word.lowercase().replaceFirstChar { it.uppercase() }
+        }
+    }
+
+    private fun normalizeProgramName(raw: String): String {
+        val upper = raw.uppercase().replace(Regex("""\s+"""), " ").trim()
+        return when {
+            upper.contains("MATH") -> "BS Mathematics"
+            upper.contains("COMPUTER") -> "BS Computer Science"
+            upper.contains("ECON") -> "BS Economics"
+            upper.contains("ACCOUNT") || upper.contains("FINANCE") -> "BS Accounting & Finance"
+            upper.contains("SOCIAL") -> "BS Social Sciences"
+            upper.contains("ARTIFICIAL") || upper == "BS AI" -> "BS Artificial Intelligence"
+            upper.contains("DATA SCIENCE") || upper == "BS DS" -> "BS Data Science"
+            upper.contains("BBA") -> "BBA"
+            upper.contains("MBA") -> "MBA"
+            else -> raw.trim()
+        }
+    }
+
+    /**
      * Formats a course into Khabri's elite prompt bullet format:
      * e.g. "• MTS201 (Linear Algebra) - Section: SS-1 | Slots: Tue/Thu 11:30-12:45"
      */

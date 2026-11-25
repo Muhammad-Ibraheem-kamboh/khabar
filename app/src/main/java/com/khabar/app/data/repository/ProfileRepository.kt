@@ -33,20 +33,154 @@ class ProfileRepository(
         profileDao.insertOrUpdate(profile)
     }
 
-    suspend fun saveCourses(courses: List<CourseEntity>) {
-        courseDao.insertAll(courses)
+    fun normalizeCourseCode(code: String): String {
+        return code.uppercase().replace(Regex("""[^A-Z0-9]"""), "").trim()
     }
 
-    suspend fun addCourse(code: String, section: String, name: String = "", teacherName: String = "", teacherEmail: String = "") {
-        courseDao.insert(
-            CourseEntity(
-                code = code.uppercase().trim(),
-                section = section.uppercase().trim(),
-                name = name.trim(),
-                teacherName = teacherName.trim(),
-                teacherEmail = teacherEmail.trim()
+    suspend fun upsertCourse(
+        course: CourseEntity,
+        isAuthoritativeLms: Boolean = false
+    ): CourseEntity {
+        val norm = normalizeCourseCode(course.code)
+        if (norm.isBlank()) return course
+
+        val matches = courseDao.findByNormalizedCode(norm)
+        if (matches.isEmpty()) {
+            val toInsert = course.copy(
+                code = norm,
+                section = course.section.trim().ifBlank { "A" },
+                name = course.name.trim().ifBlank { norm }
             )
+            val newId = courseDao.insert(toInsert)
+            return toInsert.copy(id = newId)
+        } else {
+            val primary = matches.first()
+            if (matches.size > 1) {
+                for (dup in matches.drop(1)) {
+                    courseDao.deleteById(dup.id)
+                }
+            }
+
+            val updatedSection = when {
+                isAuthoritativeLms && course.section.isNotBlank() -> course.section.trim()
+                primary.section.isBlank() || primary.section == "A" -> course.section.trim().ifBlank { primary.section }
+                else -> primary.section
+            }
+            val updatedName = when {
+                isAuthoritativeLms && course.name.isNotBlank() && !course.name.startsWith("University Course") -> course.name.trim()
+                primary.name.isBlank() || primary.name.startsWith("University Course") || primary.name == primary.code -> course.name.trim().ifBlank { primary.name }
+                else -> primary.name
+            }
+            val updatedTeacher = when {
+                isAuthoritativeLms && course.teacherName.isNotBlank() -> course.teacherName.trim()
+                primary.teacherName.isBlank() -> course.teacherName.trim().ifBlank { primary.teacherName }
+                else -> primary.teacherName
+            }
+            val updatedSlots = when {
+                isAuthoritativeLms && course.slotsJson.isNotBlank() && course.slotsJson != "[]" -> course.slotsJson
+                primary.slotsJson.isBlank() || primary.slotsJson == "[]" -> course.slotsJson.ifBlank { primary.slotsJson }
+                else -> primary.slotsJson
+            }
+            val maxAbsences = if (course.absences > 0) course.absences else primary.absences
+
+            val merged = primary.copy(
+                code = norm,
+                section = updatedSection,
+                name = updatedName,
+                teacherName = updatedTeacher,
+                teacherEmail = course.teacherEmail.ifBlank { primary.teacherEmail },
+                slotsJson = updatedSlots,
+                absences = maxAbsences
+            )
+            courseDao.update(merged)
+            return merged
+        }
+    }
+
+    suspend fun saveCourses(courses: List<CourseEntity>, isAuthoritativeLms: Boolean = false) {
+        for (c in courses) {
+            upsertCourse(c, isAuthoritativeLms = isAuthoritativeLms)
+        }
+    }
+
+    suspend fun addCourse(
+        code: String,
+        section: String,
+        name: String = "",
+        teacherName: String = "",
+        teacherEmail: String = ""
+    ) {
+        upsertCourse(
+            CourseEntity(
+                code = code,
+                section = section,
+                name = name,
+                teacherName = teacherName,
+                teacherEmail = teacherEmail
+            ),
+            isAuthoritativeLms = false
         )
+    }
+
+    suspend fun deduplicateCourses(): Int {
+        val all = courseDao.getAllCourses()
+        val grouped = all.groupBy { normalizeCourseCode(it.code) }
+        var duplicatesRemoved = 0
+
+        for ((_, list) in grouped) {
+            if (list.size > 1) {
+                val best = list.maxWithOrNull(
+                    compareBy<CourseEntity> { if (it.slotsJson != "[]" && it.slotsJson.isNotBlank()) 1 else 0 }
+                        .thenBy { if (!it.name.startsWith("University Course") && it.name != it.code) 1 else 0 }
+                        .thenBy { if (it.section != "A" && it.section.isNotBlank()) 1 else 0 }
+                        .thenBy { it.absences }
+                ) ?: list.first()
+
+                for (item in list) {
+                    if (item.id != best.id) {
+                        courseDao.deleteById(item.id)
+                        duplicatesRemoved++
+                    }
+                }
+            }
+        }
+        return duplicatesRemoved
+    }
+
+    suspend fun updateProfileFromPortal(fullName: String?, programName: String?, forceUpdate: Boolean = false): Boolean {
+        val current = getProfile() ?: ProfileEntity()
+        var changed = false
+        var updatedName = current.firstName
+        var updatedProgramId = current.programId
+        var updatedProgramName = current.programName
+
+        if (!fullName.isNullOrBlank()) {
+            val trimmedName = fullName.trim()
+            if (forceUpdate || current.firstName.isBlank() || current.firstName.equals("Student", ignoreCase = true) || !current.firstName.contains(" ") || !current.firstName.equals(trimmedName, ignoreCase = true)) {
+                updatedName = trimmedName
+                changed = true
+            }
+        }
+
+        if (!programName.isNullOrBlank()) {
+            val normProg = programName.trim()
+            if (forceUpdate || current.programName.isBlank() || current.programName.equals("BBA", ignoreCase = true) || current.programName.equals("Undergraduate", ignoreCase = true) || !current.programName.equals(normProg, ignoreCase = true)) {
+                updatedProgramName = normProg
+                updatedProgramId = normProg.lowercase().replace(" ", "_")
+                changed = true
+            }
+        }
+
+        if (changed) {
+            saveProfile(
+                current.copy(
+                    firstName = updatedName,
+                    programId = updatedProgramId,
+                    programName = updatedProgramName
+                )
+            )
+        }
+        return changed
     }
 
     suspend fun removeCourse(id: Long) {
@@ -179,8 +313,22 @@ class ProfileRepository(
             campus = campus
         )
         saveProfile(updated)
-        courseDao.clear()
-        courseDao.insertAll(courses)
+
+        val existingCourses = courseDao.getAllCourses()
+        val newNormalizedCodes = courses.map { normalizeCourseCode(it.code) }.toSet()
+
+        // Delete courses explicitly removed by user
+        for (old in existingCourses) {
+            val norm = normalizeCourseCode(old.code)
+            if (!newNormalizedCodes.contains(norm)) {
+                courseDao.deleteById(old.id)
+            }
+        }
+
+        // Upsert all specified courses (preserving existing slots/absences)
+        for (c in courses) {
+            upsertCourse(c, isAuthoritativeLms = false)
+        }
     }
 
     suspend fun updateSummaryLanguage(lang: com.khabar.app.domain.model.SummaryLanguage) {

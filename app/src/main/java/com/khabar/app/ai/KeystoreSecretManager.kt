@@ -147,7 +147,7 @@ class KeystoreSecretManager(context: Context) {
         try {
             val configKey = com.khabar.app.BuildConfig.AI_API_KEY.trim()
             if (configKey.isNotBlank()) {
-                val detectedProvider = detectProviderFromKey(configKey)
+                val detectedProvider = detectProvider(configKey)
                 val existingKey = getApiKeyForProvider(detectedProvider)
                 if (existingKey.isBlank() || existingKey.contains("placeholder")) {
                     saveApiKeyForProvider(detectedProvider, configKey)

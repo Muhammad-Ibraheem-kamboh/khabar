@@ -210,4 +210,62 @@ object ClassScheduleHelper {
             DayOfWeek.SUNDAY -> upper.contains("SUN")
         }
     }
+
+    data class ScheduleClash(
+        val courseACode: String,
+        val courseBCode: String,
+        val day: String,
+        val timeSlotA: String,
+        val timeSlotB: String
+    )
+
+    /**
+     * Identifies timetable clashes/overlaps across enrolled courses.
+     * E.g. Course A and Course B overlapping on Tuesday 10:00 - 11:15 AM.
+     */
+    fun detectScheduleClashes(courses: List<CourseEntity>): List<ScheduleClash> {
+        val clashes = mutableListOf<ScheduleClash>()
+        val parsedList = courses.map { c -> Pair(c, parseSlots(c.slotsJson)) }
+
+        for (i in parsedList.indices) {
+            val (cA, slotsA) = parsedList[i]
+            for (j in (i + 1) until parsedList.size) {
+                val (cB, slotsB) = parsedList[j]
+                if (cA.code.equals(cB.code, ignoreCase = true)) continue
+
+                for (sA in slotsA) {
+                    for (sB in slotsB) {
+                        if (isSameDay(sA.day, sB.day)) {
+                            val startA = sA.startHour * 60 + sA.startMinute
+                            val endA = sA.endHour * 60 + sA.endMinute
+                            val startB = sB.startHour * 60 + sB.startMinute
+                            val endB = sB.endHour * 60 + sB.endMinute
+
+                            // Intersecting time ranges
+                            if (startA < endB && startB < endA) {
+                                clashes.add(
+                                    ScheduleClash(
+                                        courseACode = cA.code,
+                                        courseBCode = cB.code,
+                                        day = sA.day,
+                                        timeSlotA = sA.timeString,
+                                        timeSlotB = sB.timeString
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return clashes
+    }
+
+    private fun isSameDay(dayA: String, dayB: String): Boolean {
+        val uA = dayA.uppercase().trim()
+        val uB = dayB.uppercase().trim()
+        if (uA == uB) return true
+        val days = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
+        return days.any { d -> uA.contains(d) && uB.contains(d) }
+    }
 }

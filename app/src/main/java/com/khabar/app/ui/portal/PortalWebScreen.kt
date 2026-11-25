@@ -38,14 +38,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.SmartToy
+import androidx.compose.material.icons.rounded.Verified
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -97,6 +104,7 @@ import com.khabar.app.domain.model.RawMail
 import com.khabar.app.ui.theme.IosGreen
 import com.khabar.app.ui.theme.IosSecondaryText
 import com.khabar.app.ui.theme.KhabarBlue
+import com.khabar.app.util.ClassScheduleHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -117,6 +125,19 @@ data class PortalErrorState(
     val description: String,
     val failingUrl: String,
     val isDnsFailure: Boolean
+)
+
+data class PortalDiscrepancyReport(
+    val detectedName: String? = null,
+    val currentName: String = "",
+    val detectedProgram: String? = null,
+    val currentProgram: String = "",
+    val detectedErp: String? = null,
+    val newCourses: List<CourseEntity> = emptyList(),
+    val updatedCourses: List<CourseEntity> = emptyList(),
+    val scheduleClashes: List<ClassScheduleHelper.ScheduleClash> = emptyList(),
+    val isLmsAuthoritative: Boolean = false,
+    val sourcePortalName: String = ""
 )
 
 object PortalSecurityHelper {
@@ -257,8 +278,7 @@ fun PortalWebScreen(
     var showEditUrlDialog by remember { mutableStateOf(false) }
     var editUrlInput by remember { mutableStateOf("") }
 
-    var detectedNewCourses by remember { mutableStateOf<List<CourseEntity>>(emptyList()) }
-    var showCourseSyncDialog by remember { mutableStateOf(false) }
+    var pendingDiscrepancyReport by remember { mutableStateOf<PortalDiscrepancyReport?>(null) }
 
     var autoSyncBadgeText by remember { mutableStateOf<String?>(null) }
     var lastAutoScrapedUrl by remember { mutableStateOf("") }
@@ -287,68 +307,134 @@ fun PortalWebScreen(
                     )
                     mailRepository.processAndSaveIncoming(rawMail)
 
-                    // 2. Autonomous course & schedule detection
+                    // 2. Autonomous course, schedule, and profile detection
                     if (profileRepository != null) {
-                        val detected = PortalCourseDetector.detectCourses(rawText)
-                        if (detected.isNotEmpty()) {
-                            val existing = profileRepository.coursesFlow.first()
-                            val existingCodes = existing.map { it.code.uppercase().trim() }.toSet()
-                            val unadded = detected.filter { !existingCodes.contains(it.code.uppercase().trim()) }
+                        val isLms = currentTab == PortalTab.LMS
+                        val detectedProfile = PortalCourseDetector.detectStudentProfile(rawText)
+                        val detectedCourses = PortalCourseDetector.detectCourses(rawText)
+                        val currentProfile = profileRepository.profileFlow.first()
+                        val existingCourses = profileRepository.coursesFlow.first()
 
-                            val updatedCourses = mutableListOf<CourseEntity>()
-                            for (c in detected) {
-                                val matched = existing.find { it.code.equals(c.code, ignoreCase = true) }
-                                if (matched != null) {
-                                    var changed = false
-                                    var updatedSection = matched.section
-                                    var updatedSlots = matched.slotsJson
-                                    var updatedName = matched.name
+                        val existingByCode = existingCourses.associateBy { PortalCourseDetector.normalizeCourseCode(it.code) }
 
-                                    if ((matched.section.isBlank() || matched.section == "A") && c.section.isNotBlank() && c.section != "A") {
-                                        updatedSection = c.section
+                        val newCourses = mutableListOf<CourseEntity>()
+                        val updatedCourses = mutableListOf<CourseEntity>()
+
+                        for (detected in detectedCourses) {
+                            val normCode = PortalCourseDetector.normalizeCourseCode(detected.code)
+                            val matched = existingByCode[normCode]
+                            if (matched == null) {
+                                newCourses.add(detected)
+                            } else {
+                                var changed = false
+                                var betterSection = matched.section
+                                var betterSlots = matched.slotsJson
+                                var betterName = matched.name
+                                var betterTeacher = matched.teacherName
+
+                                if (isLms) {
+                                    // LMS is authoritative source of truth
+                                    if (detected.section.isNotBlank() && detected.section != matched.section) {
+                                        betterSection = detected.section
                                         changed = true
                                     }
-                                    if ((matched.slotsJson.isBlank() || matched.slotsJson == "[]") && c.slotsJson.isNotBlank() && c.slotsJson != "[]") {
-                                        updatedSlots = c.slotsJson
+                                    if (detected.slotsJson.isNotBlank() && detected.slotsJson != "[]" && detected.slotsJson != matched.slotsJson) {
+                                        betterSlots = detected.slotsJson
                                         changed = true
                                     }
-                                    if ((matched.name.isBlank() || matched.name.startsWith("University Course") || matched.name.contains("Course (")) && c.name.isNotBlank() && !c.name.startsWith("University Course")) {
-                                        updatedName = c.name
+                                    if (detected.name.isNotBlank() && !detected.name.startsWith("University Course") && detected.name != matched.name) {
+                                        betterName = detected.name
                                         changed = true
                                     }
-
-                                    if (changed) {
-                                        updatedCourses.add(
-                                            matched.copy(
-                                                section = updatedSection,
-                                                slotsJson = updatedSlots,
-                                                name = updatedName
-                                            )
-                                        )
+                                    if (detected.teacherName.isNotBlank() && detected.teacherName != matched.teacherName) {
+                                        betterTeacher = detected.teacherName
+                                        changed = true
+                                    }
+                                } else {
+                                    if ((matched.section.isBlank() || matched.section == "A") && detected.section.isNotBlank() && detected.section != "A") {
+                                        betterSection = detected.section
+                                        changed = true
+                                    }
+                                    if ((matched.slotsJson.isBlank() || matched.slotsJson == "[]") && detected.slotsJson.isNotBlank() && detected.slotsJson != "[]") {
+                                        betterSlots = detected.slotsJson
+                                        changed = true
+                                    }
+                                    if ((matched.name.isBlank() || matched.name.startsWith("University Course") || matched.name.contains("Course (")) && detected.name.isNotBlank() && !detected.name.startsWith("University Course")) {
+                                        betterName = detected.name
+                                        changed = true
+                                    }
+                                    if (matched.teacherName.isBlank() && detected.teacherName.isNotBlank()) {
+                                        betterTeacher = detected.teacherName
+                                        changed = true
                                     }
                                 }
-                            }
 
-                            val toSave = unadded + updatedCourses
-                            if (toSave.isNotEmpty()) {
-                                profileRepository.saveCourses(toSave)
-                                autoSyncBadgeText = "✓ Synced ${toSave.size} course(s) & timetable into memory"
+                                if (changed) {
+                                    updatedCourses.add(
+                                        matched.copy(
+                                            section = betterSection,
+                                            slotsJson = betterSlots,
+                                            name = betterName,
+                                            teacherName = betterTeacher
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        // Check schedule clashes across existing + updated + new
+                        val mergedForClashCheck = existingCourses.map { existing ->
+                            val updated = updatedCourses.find { PortalCourseDetector.normalizeCourseCode(it.code) == PortalCourseDetector.normalizeCourseCode(existing.code) }
+                            updated ?: existing
+                        } + newCourses
+                        val clashes = ClassScheduleHelper.detectScheduleClashes(mergedForClashCheck)
+
+                        // Check student profile name / program differences
+                        val nameDiff = detectedProfile?.fullName?.takeIf { it.isNotBlank() && !it.equals(currentProfile?.firstName, ignoreCase = true) }
+                        val progDiff = detectedProfile?.programName?.takeIf { it.isNotBlank() && !it.equals(currentProfile?.programName, ignoreCase = true) }
+                        val erpDetected = detectedProfile?.erpId
+
+                        val hasDiscrepancy = nameDiff != null || progDiff != null || newCourses.isNotEmpty() || updatedCourses.isNotEmpty() || clashes.isNotEmpty()
+
+                        if (hasDiscrepancy) {
+                            val report = PortalDiscrepancyReport(
+                                detectedName = nameDiff,
+                                currentName = currentProfile?.firstName ?: "",
+                                detectedProgram = progDiff,
+                                currentProgram = currentProfile?.programName ?: "",
+                                detectedErp = erpDetected,
+                                newCourses = newCourses,
+                                updatedCourses = updatedCourses,
+                                scheduleClashes = clashes,
+                                isLmsAuthoritative = isLms,
+                                sourcePortalName = currentTab.title
+                            )
+
+                            if (isManual || isLms || clashes.isNotEmpty()) {
+                                pendingDiscrepancyReport = report
+                            } else {
+                                val toSave = newCourses + updatedCourses
+                                if (toSave.isNotEmpty()) {
+                                    profileRepository.saveCourses(toSave, isAuthoritativeLms = isLms)
+                                    autoSyncBadgeText = "✓ Synced ${toSave.size} course(s) from ${currentTab.title}"
+                                }
+                                if (nameDiff != null || progDiff != null) {
+                                    profileRepository.updateProfileFromPortal(nameDiff, progDiff)
+                                }
+                            }
+                        } else {
+                            if (isManual) {
+                                Toast.makeText(context, "📥 Synced to Khabri! Announcements & schedule are up-to-date.", Toast.LENGTH_SHORT).show()
                             } else {
                                 autoSyncBadgeText = "✓ Synced portal bulletins to memory"
                             }
-                        } else {
-                            autoSyncBadgeText = "✓ Synced portal bulletins to memory"
                         }
                     } else {
                         autoSyncBadgeText = "✓ Synced portal notices to memory"
                     }
-
+                } catch (e: Exception) {
                     if (isManual) {
-                        Toast.makeText(context, "📥 Synced to Khabri! Announcements & schedule saved.", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (_: Exception) {
-                    if (isManual) {
-                        Toast.makeText(context, "Failed to sync page to Khabri memory. Please try again.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Failed to sync: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -1024,44 +1110,121 @@ fun PortalWebScreen(
         )
     }
 
-    if (showCourseSyncDialog && detectedNewCourses.isNotEmpty()) {
+    pendingDiscrepancyReport?.let { report ->
         AlertDialog(
-            onDismissRequest = { showCourseSyncDialog = false },
+            onDismissRequest = { pendingDiscrepancyReport = null },
             title = {
-                Text(
-                    text = "Enrolled Courses Detected",
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (report.scheduleClashes.isNotEmpty()) Icons.Rounded.Warning else Icons.Rounded.Verified,
+                        contentDescription = null,
+                        tint = if (report.scheduleClashes.isNotEmpty()) MaterialTheme.colorScheme.error else KhabarBlue,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = if (report.isLmsAuthoritative) "LMS Verification & Sync" else "Portal Verification",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text(
-                        text = "We detected ${detectedNewCourses.size} new course(s) on this portal page. Would you like to sync them directly into your course schedule?",
+                        text = "We analyzed this page from ${report.sourcePortalName}${if (report.isLmsAuthoritative) " (Official Authoritative Source)" else ""}. Review detected updates and sync into Khabar:",
                         style = MaterialTheme.typography.bodySmall,
                         color = IosSecondaryText
                     )
-                    detectedNewCourses.forEach { course ->
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+
+                    // 1. Student Profile Updates
+                    if (report.detectedName != null || report.detectedProgram != null || report.detectedErp != null) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = course.code,
-                                    fontWeight = FontWeight.Bold,
-                                    color = KhabarBlue,
-                                    fontSize = 13.sp
-                                )
-                                Text(
-                                    text = "Section ${course.section}",
-                                    color = IosSecondaryText,
-                                    fontSize = 12.sp
-                                )
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Rounded.Person, contentDescription = null, tint = KhabarBlue, modifier = Modifier.size(16.dp))
+                                    Text("Student Profile Discrepancy", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = KhabarBlue)
+                                }
+                                report.detectedName?.let {
+                                    Text("• Name: $it (Current: ${report.currentName.ifBlank { "Not set" }})", fontSize = 12.sp)
+                                }
+                                report.detectedProgram?.let {
+                                    Text("• Program: $it (Current: ${report.currentProgram.ifBlank { "Not set" }})", fontSize = 12.sp)
+                                }
+                                report.detectedErp?.let {
+                                    Text("• Student ID / ERP: $it", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Schedule Clashes / Overlaps Warning
+                    if (report.scheduleClashes.isNotEmpty()) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Rounded.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                    Text("Timetable Clashes / Overlaps (${report.scheduleClashes.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                                }
+                                report.scheduleClashes.forEach { clash ->
+                                    Text(
+                                        "• ${clash.courseACode} and ${clash.courseBCode} clash on ${clash.day} (${clash.timeSlotA} vs ${clash.timeSlotB})",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. New Enrolled Courses
+                    if (report.newCourses.isNotEmpty()) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Rounded.School, contentDescription = null, tint = KhabarBlue, modifier = Modifier.size(16.dp))
+                                    Text("New Courses Detected (${report.newCourses.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = KhabarBlue)
+                                }
+                                report.newCourses.forEach { c ->
+                                    val nameSuffix = if (c.name.isNotBlank() && !c.name.startsWith("University Course")) " (${c.name})" else ""
+                                    Text("• ${c.code}$nameSuffix - Sec: ${c.section}", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // 4. Updated Courses Details
+                    if (report.updatedCourses.isNotEmpty()) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Rounded.Schedule, contentDescription = null, tint = KhabarBlue, modifier = Modifier.size(16.dp))
+                                    Text("Course Details to Update (${report.updatedCourses.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = KhabarBlue)
+                                }
+                                report.updatedCourses.forEach { c ->
+                                    Text("• ${c.code}: Sec ${c.section}, ${c.name}", fontSize = 12.sp)
+                                }
                             }
                         }
                     }
@@ -1071,25 +1234,28 @@ fun PortalWebScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            profileRepository?.saveCourses(detectedNewCourses)
-                            Toast.makeText(context, "✓ ${detectedNewCourses.size} courses added to schedule!", Toast.LENGTH_SHORT).show()
-                            showCourseSyncDialog = false
-                            detectedNewCourses = emptyList()
+                            val toSave = report.newCourses + report.updatedCourses
+                            if (toSave.isNotEmpty()) {
+                                profileRepository?.saveCourses(toSave, isAuthoritativeLms = report.isLmsAuthoritative)
+                            }
+                            if (report.detectedName != null || report.detectedProgram != null) {
+                                profileRepository?.updateProfileFromPortal(report.detectedName, report.detectedProgram, forceUpdate = true)
+                            }
+                            profileRepository?.deduplicateCourses()
+                            Toast.makeText(context, "✓ Profile & courses synced with ${report.sourcePortalName}!", Toast.LENGTH_SHORT).show()
+                            pendingDiscrepancyReport = null
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KhabarBlue)
                 ) {
-                    Text("Sync to Schedule")
+                    Text(if (report.isLmsAuthoritative) "Sync All (LMS Authoritative)" else "Sync All")
                 }
             },
             dismissButton = {
                 TextButton(
-                    onClick = {
-                        showCourseSyncDialog = false
-                        detectedNewCourses = emptyList()
-                    }
+                    onClick = { pendingDiscrepancyReport = null }
                 ) {
-                    Text("Skip", color = IosSecondaryText)
+                    Text("Keep Current", color = IosSecondaryText)
                 }
             }
         )

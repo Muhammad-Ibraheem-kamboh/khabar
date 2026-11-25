@@ -27,6 +27,7 @@ class KhabarApp : Application() {
         CoroutineScope(Dispatchers.IO).launch {
             container.channelsManager.initializeChannels()
             container.mailRepository.clearSampleMails()
+            container.profileRepository.deduplicateCourses()
 
             val profile = container.profileRepository.getProfile()
             val isEnabled = profile?.digestEnabled ?: true

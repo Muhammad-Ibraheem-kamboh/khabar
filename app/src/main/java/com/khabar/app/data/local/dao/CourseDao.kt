@@ -20,6 +20,9 @@ interface CourseDao {
     @Query("SELECT * FROM courses WHERE code = :code LIMIT 1")
     suspend fun findByCode(code: String): CourseEntity?
 
+    @Query("SELECT * FROM courses WHERE UPPER(REPLACE(code, ' ', '')) = UPPER(REPLACE(:code, ' ', ''))")
+    suspend fun findByNormalizedCode(code: String): List<CourseEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(course: CourseEntity): Long
 
