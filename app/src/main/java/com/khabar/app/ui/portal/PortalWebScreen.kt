@@ -28,6 +28,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -236,6 +237,60 @@ object PortalContentParser {
     }
 }
 
+object PortalJsExtractor {
+    val EXTRACT_SCRIPT = """
+        (function() {
+            try {
+                var title = document.title || "";
+                var parts = [];
+                
+                // 1. Main document body text
+                if (document.body) {
+                    var mainText = document.body.innerText || document.body.textContent || "";
+                    if (mainText && mainText.trim().length > 0) parts.push(mainText.trim());
+                }
+                
+                // 2. Sakai LMS tabs, site navigation, and user menu attributes
+                try {
+                    var siteNodes = document.querySelectorAll(
+                        '#siteNav, .Mrphs-sites-nav, .Mrphs-header-logo, #loginUser, .Mrphs-userNav, ' +
+                        '.siteFavorite, .site-favorite-btn, .fav-title, a[title], [aria-label], ' +
+                        'table[id*="CLASS"], table[id*="ENRL"], .PSLEVEL1GRID'
+                    );
+                    for (var i = 0; i < siteNodes.length; i++) {
+                        var node = siteNodes[i];
+                        var titleAttr = node.getAttribute('title');
+                        if (titleAttr && titleAttr.length > 3) parts.push(titleAttr);
+                        var ariaLabel = node.getAttribute('aria-label');
+                        if (ariaLabel && ariaLabel.length > 3) parts.push(ariaLabel);
+                    }
+                } catch(e) {}
+                
+                // 3. Inspect all iframes on the page (Sakai tools load inside iframes)
+                try {
+                    var iframes = document.querySelectorAll('iframe');
+                    for (var j = 0; j < iframes.length; j++) {
+                        try {
+                            var doc = iframes[j].contentDocument || iframes[j].contentWindow.document;
+                            if (doc && doc.body) {
+                                var iframeText = doc.body.innerText || doc.body.textContent || "";
+                                if (iframeText && iframeText.trim().length > 0) {
+                                    parts.push(iframeText.trim());
+                                }
+                            }
+                        } catch(e) {}
+                    }
+                } catch(e) {}
+                
+                var combinedText = parts.join("\n\n");
+                return JSON.stringify({ title: title, text: combinedText });
+            } catch(e) {
+                return JSON.stringify({ title: "", text: "" });
+            }
+        })();
+    """.trimIndent()
+}
+
 class PortalBridge(
     private val onPageContentExtracted: (title: String, body: String, url: String) -> Unit
 ) {
@@ -394,10 +449,34 @@ fun PortalWebScreen(
                         val progDiff = detectedProfile?.programName?.takeIf { it.isNotBlank() && !it.equals(currentProfile?.programName, ignoreCase = true) }
                         val erpDetected = detectedProfile?.erpId
 
-                        val hasDiscrepancy = nameDiff != null || progDiff != null || newCourses.isNotEmpty() || updatedCourses.isNotEmpty() || clashes.isNotEmpty()
+                        // === AUTOMATIC BACKGROUND PERSISTENCE ===
+                        val toSave = newCourses + updatedCourses
+                        if (toSave.isNotEmpty()) {
+                            profileRepository.saveCourses(toSave, isAuthoritativeLms = isLms)
+                            autoSyncBadgeText = "✓ Auto-saved ${toSave.size} course(s) from ${currentTab.title}"
+                        } else if (detectedCourses.isNotEmpty() && existingCourses.isEmpty()) {
+                            profileRepository.saveCourses(detectedCourses, isAuthoritativeLms = isLms)
+                            autoSyncBadgeText = "✓ Auto-saved ${detectedCourses.size} course(s) from ${currentTab.title}"
+                        }
 
-                        if (hasDiscrepancy) {
-                            val report = PortalDiscrepancyReport(
+                        // Auto-populate profile in settings if missing or on LMS
+                        if (nameDiff != null || progDiff != null) {
+                            val force = isLms || (currentProfile?.firstName.isNullOrBlank())
+                            val updated = profileRepository.updateProfileFromPortal(
+                                fullName = nameDiff,
+                                programName = progDiff,
+                                forceUpdate = force
+                            )
+                            if (updated && toSave.isEmpty()) {
+                                autoSyncBadgeText = "✓ Auto-updated profile from ${currentTab.title}"
+                            }
+                        }
+
+                        profileRepository.deduplicateCourses()
+
+                        // Only surface discrepancy dialog on manual press or if clashes exist
+                        if (isManual || clashes.isNotEmpty()) {
+                            pendingDiscrepancyReport = PortalDiscrepancyReport(
                                 detectedName = nameDiff,
                                 currentName = currentProfile?.firstName ?: "",
                                 detectedProgram = progDiff,
@@ -409,25 +488,10 @@ fun PortalWebScreen(
                                 isLmsAuthoritative = isLms,
                                 sourcePortalName = currentTab.title
                             )
+                        }
 
-                            if (isManual || isLms || clashes.isNotEmpty()) {
-                                pendingDiscrepancyReport = report
-                            } else {
-                                val toSave = newCourses + updatedCourses
-                                if (toSave.isNotEmpty()) {
-                                    profileRepository.saveCourses(toSave, isAuthoritativeLms = isLms)
-                                    autoSyncBadgeText = "✓ Synced ${toSave.size} course(s) from ${currentTab.title}"
-                                }
-                                if (nameDiff != null || progDiff != null) {
-                                    profileRepository.updateProfileFromPortal(nameDiff, progDiff)
-                                }
-                            }
-                        } else {
-                            if (isManual) {
-                                Toast.makeText(context, "📥 Synced to Khabri! Announcements & schedule are up-to-date.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                autoSyncBadgeText = "✓ Synced portal bulletins to memory"
-                            }
+                        if (isManual && clashes.isEmpty() && toSave.isEmpty() && nameDiff == null && progDiff == null) {
+                            Toast.makeText(context, "📥 Portal notices synced! Schedule is already up-to-date.", Toast.LENGTH_SHORT).show()
                         }
                     } else {
                         autoSyncBadgeText = "✓ Synced portal notices to memory"
@@ -440,6 +504,77 @@ fun PortalWebScreen(
             }
         } else if (isManual) {
             Toast.makeText(context, "Page is still loading or empty. Please wait a moment.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val performFinalSyncAndExit: () -> Unit = {
+        val web = webViewInstance
+        if (web != null && profileRepository != null) {
+            web.evaluateJavascript(PortalJsExtractor.EXTRACT_SCRIPT) { jsonResult ->
+                val (extractedTitle, rawText) = PortalContentParser.parseExtractedContent(jsonResult)
+                scope.launch {
+                    try {
+                        val isLms = currentTab == PortalTab.LMS
+                        val detectedProfile = PortalCourseDetector.detectStudentProfile(rawText)
+                        val detectedCourses = PortalCourseDetector.detectCourses(rawText)
+
+                        var savedCoursesCount = 0
+                        if (detectedCourses.isNotEmpty()) {
+                            profileRepository.saveCourses(detectedCourses, isAuthoritativeLms = isLms)
+                            savedCoursesCount = detectedCourses.size
+                        }
+
+                        var profileUpdated = false
+                        if (detectedProfile?.fullName != null || detectedProfile?.programName != null) {
+                            profileUpdated = profileRepository.updateProfileFromPortal(
+                                fullName = detectedProfile.fullName,
+                                programName = detectedProfile.programName,
+                                forceUpdate = true
+                            )
+                        }
+
+                        profileRepository.deduplicateCourses()
+
+                        val msg = when {
+                            savedCoursesCount > 0 && profileUpdated ->
+                                "✓ Synced $savedCoursesCount course(s) and profile from ${currentTab.title}!"
+                            savedCoursesCount > 0 ->
+                                "✓ Synced $savedCoursesCount course(s) from ${currentTab.title}!"
+                            profileUpdated ->
+                                "✓ Synced profile from ${currentTab.title}!"
+                            else ->
+                                "✓ Synced with ${currentTab.title}"
+                        }
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {}
+                    onBack()
+                }
+            }
+        } else {
+            onBack()
+        }
+    }
+
+    // Continuous background detection loop while on portal (handles dynamic SPAs and tab switches)
+    LaunchedEffect(currentTab) {
+        while (true) {
+            delay(4000)
+            val web = webViewInstance
+            val url = currentUrl.ifBlank { web?.url ?: "" }
+            val isLogin = url.contains("login", ignoreCase = true) ||
+                    url.contains("signin", ignoreCase = true) ||
+                    url.contains("oauth", ignoreCase = true) ||
+                    url.contains("microsoftonline", ignoreCase = true) ||
+                    url.contains("msauth", ignoreCase = true)
+
+            if (web != null && !isLogin && url.isNotBlank()) {
+                web.evaluateJavascript(PortalJsExtractor.EXTRACT_SCRIPT) { jsonResult ->
+                    val (extractedTitle, rawText) = PortalContentParser.parseExtractedContent(jsonResult)
+                    if (rawText.length >= 20) {
+                        handlePortalExtraction(extractedTitle, rawText, url, false)
+                    }
+                }
+            }
         }
     }
 
@@ -460,11 +595,11 @@ fun PortalWebScreen(
     BackHandler {
         if (portalError != null) {
             portalError = null
-            onBack()
+            performFinalSyncAndExit()
         } else if (webViewInstance?.canGoBack() == true) {
             webViewInstance?.goBack()
         } else {
-            onBack()
+            performFinalSyncAndExit()
         }
     }
 
@@ -506,16 +641,35 @@ fun PortalWebScreen(
                             if (portalError != null) {
                                 portalError = null
                                 onBack()
-                            } else if (webViewInstance?.canGoBack() == true) {
-                                webViewInstance?.goBack()
                             } else {
-                                onBack()
+                                performFinalSyncAndExit()
                             }
                         }) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                         }
                     },
                     actions = {
+                        Button(
+                            onClick = { performFinalSyncAndExit() },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = KhabarBlue),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(end = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.CheckCircle,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Done",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         IconButton(onClick = {
                             editUrlInput = activeTargetUrl
                             showEditUrlDialog = true
@@ -590,15 +744,7 @@ fun PortalWebScreen(
                             onClick = {
                                 val web = webViewInstance ?: return@Button
                                 isExtracting = true
-                                val jsExtract = """
-                                    (function() {
-                                        var title = document.title || "";
-                                        var body = document.body ? (document.body.innerText || document.body.textContent || "") : "";
-                                        return JSON.stringify({ title: title, text: body });
-                                    })();
-                                """.trimIndent()
-
-                                web.evaluateJavascript(jsExtract) { jsonResult ->
+                                web.evaluateJavascript(PortalJsExtractor.EXTRACT_SCRIPT) { jsonResult ->
                                     isExtracting = false
                                     val (extractedTitle, rawText) = PortalContentParser.parseExtractedContent(jsonResult)
                                     handlePortalExtraction(extractedTitle, rawText, currentUrl.ifBlank { activeTargetUrl }, true)
@@ -622,15 +768,7 @@ fun PortalWebScreen(
                         Button(
                             onClick = {
                                 val web = webViewInstance ?: return@Button
-                                val jsExtract = """
-                                    (function() {
-                                        var title = document.title || "";
-                                        var body = document.body ? (document.body.innerText || document.body.textContent || "") : "";
-                                        return JSON.stringify({ title: title, text: body });
-                                    })();
-                                """.trimIndent()
-
-                                web.evaluateJavascript(jsExtract) { jsonResult ->
+                                web.evaluateJavascript(PortalJsExtractor.EXTRACT_SCRIPT) { jsonResult ->
                                     val (extractedTitle, rawText) = PortalContentParser.parseExtractedContent(jsonResult)
                                     if (rawText.isNotBlank()) {
                                         onAskKhabri(extractedTitle.ifBlank { currentTab.title }, rawText.take(5000))
@@ -731,29 +869,20 @@ fun PortalWebScreen(
                                         pageUrl.contains("msauth", ignoreCase = true) ||
                                         pageUrl.contains("sts/", ignoreCase = true)
 
-                                if (!isLoginOrSso && pageUrl.isNotBlank() && pageUrl != lastAutoScrapedUrl) {
-                                    lastAutoScrapedUrl = pageUrl
-                                    val jsExtract = """
-                                        (function() {
-                                            try {
-                                                var title = document.title || "";
-                                                var body = document.body ? (document.body.innerText || document.body.textContent || "") : "";
-                                                if (window.PortalBridge && typeof window.PortalBridge.onPageContent === 'function') {
-                                                    window.PortalBridge.onPageContent(title, body, window.location.href);
-                                                }
-                                                return JSON.stringify({ title: title, text: body });
-                                            } catch (e) {
-                                                return JSON.stringify({ title: "", text: "" });
-                                            }
-                                        })();
-                                    """.trimIndent()
-
-                                    view?.postDelayed({
-                                        view.evaluateJavascript(jsExtract) { jsonResult ->
+                                if (!isLoginOrSso && pageUrl.isNotBlank()) {
+                                    val triggerScrape = {
+                                        view?.evaluateJavascript(PortalJsExtractor.EXTRACT_SCRIPT) { jsonResult ->
                                             val (extractedTitle, rawText) = PortalContentParser.parseExtractedContent(jsonResult)
-                                            handlePortalExtraction(extractedTitle, rawText, pageUrl, false)
+                                            if (rawText.length >= 20) {
+                                                handlePortalExtraction(extractedTitle, rawText, pageUrl, false)
+                                            }
                                         }
-                                    }, 600)
+                                    }
+
+                                    // Run quick extraction at 800ms
+                                    view?.postDelayed({ triggerScrape() }, 800)
+                                    // Run secondary extraction at 2500ms for delayed iframes & SPA rendering
+                                    view?.postDelayed({ triggerScrape() }, 2500)
                                 }
                             }
 

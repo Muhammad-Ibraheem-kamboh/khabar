@@ -81,7 +81,8 @@ class ProfileRepository(
                 primary.slotsJson.isBlank() || primary.slotsJson == "[]" -> course.slotsJson.ifBlank { primary.slotsJson }
                 else -> primary.slotsJson
             }
-            val maxAbsences = if (course.absences > 0) course.absences else primary.absences
+            val currentAbsences = if (course.absences > 0) course.absences else primary.absences
+            val currentMax = if (course.maxAbsences > 0) course.maxAbsences else primary.maxAbsences
 
             val merged = primary.copy(
                 code = norm,
@@ -90,7 +91,8 @@ class ProfileRepository(
                 teacherName = updatedTeacher,
                 teacherEmail = course.teacherEmail.ifBlank { primary.teacherEmail },
                 slotsJson = updatedSlots,
-                absences = maxAbsences
+                absences = currentAbsences,
+                maxAbsences = currentMax
             )
             courseDao.update(merged)
             return merged
