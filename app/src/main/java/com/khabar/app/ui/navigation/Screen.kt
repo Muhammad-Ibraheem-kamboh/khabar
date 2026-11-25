@@ -23,4 +23,6 @@ sealed class Screen(val route: String) {
     object AiSettings : Screen("ai_settings")
     object EditProfile : Screen("edit_profile")
     object DeveloperTools : Screen("developer_tools")
+    object AiDefectVault : Screen("ai_defect_vault")
+    object PortalWeb : Screen("portal_web")
 }

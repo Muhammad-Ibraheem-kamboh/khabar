@@ -69,8 +69,13 @@ class AppContainer(val context: Context) {
             rulesEngine = rulesEngine,
             offlineSummarizer = offlineSummarizer,
             notificationManager = notificationManager,
-            mailSources = mailSources
+            mailSources = mailSources,
+            reminderRepository = reminderRepository
         )
+    }
+
+    val aiDefectManager: com.khabar.app.ai.AiDefectManager by lazy {
+        com.khabar.app.ai.AiDefectManager(database.aiDefectLogDao())
     }
 
     val chatRepository: com.khabar.app.data.repository.ChatRepository by lazy {
@@ -80,7 +85,8 @@ class AppContainer(val context: Context) {
             profileRepository = profileRepository,
             reminderRepository = reminderRepository,
             secretManager = keystoreSecretManager,
-            openAiClient = openAiClient
+            openAiClient = openAiClient,
+            aiDefectManager = aiDefectManager
         )
     }
 

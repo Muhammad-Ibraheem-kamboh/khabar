@@ -26,6 +26,16 @@ class KhabarApp : Application() {
 
         CoroutineScope(Dispatchers.IO).launch {
             container.channelsManager.initializeChannels()
+            container.mailRepository.clearSampleMails()
+
+            val profile = container.profileRepository.getProfile()
+            val isEnabled = profile?.digestEnabled ?: true
+            if (isEnabled) {
+                com.khabar.app.notifications.BootCompletedReceiver.scheduleDailyDigest(
+                    this@KhabarApp,
+                    profile?.digestTime ?: "07:30"
+                )
+            }
         }
 
         // Periodic WorkManager sync every 15 minutes

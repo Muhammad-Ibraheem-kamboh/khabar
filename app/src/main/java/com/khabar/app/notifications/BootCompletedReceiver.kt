@@ -89,5 +89,22 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 )
             } catch (_: Exception) {}
         }
+
+        fun cancelDailyDigest(context: Context) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+            val digestIntent = Intent(context, DailyDigestReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                9090,
+                digestIntent,
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )
+            if (pendingIntent != null) {
+                try {
+                    alarmManager.cancel(pendingIntent)
+                    pendingIntent.cancel()
+                } catch (_: Exception) {}
+            }
+        }
     }
 }

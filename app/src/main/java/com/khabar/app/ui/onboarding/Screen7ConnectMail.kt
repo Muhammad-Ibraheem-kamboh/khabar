@@ -55,7 +55,6 @@ import com.khabar.app.ui.theme.SystemBlueContainer
 @Composable
 fun Screen7ConnectMail(
     onContinueToPermissions: () -> Unit,
-    onLoadSampleMailsAndFinish: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -175,21 +174,6 @@ fun Screen7ConnectMail(
                     buttonText = "Turn on",
                     isConfigured = true,
                     onActionClick = onContinueToPermissions
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-            }
-
-            // Card 4: Try with sample mails
-            item {
-                ProviderCard(
-                    title = "Try with sample mails",
-                    tag = "DEMO READY",
-                    description = "Test Khabar immediately with 30 realistic IBA emails.",
-                    icon = Icons.Rounded.Science,
-                    iconBgColor = Color(0xFF34C759),
-                    buttonText = "Load demo mails",
-                    isConfigured = true,
-                    onActionClick = onLoadSampleMailsAndFinish
                 )
                 Spacer(modifier = Modifier.height(20.dp))
             }

@@ -15,7 +15,12 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
-data class ChatMessage(val role: String, val content: String)
+data class ChatMessage(
+    val role: String,
+    val content: String,
+    val imageBase64: String? = null,
+    val imageMimeType: String? = "image/jpeg"
+)
 
 class OpenAiCompatibleClient(
     private val client: OkHttpClient = OkHttpClient.Builder()
@@ -23,6 +28,28 @@ class OpenAiCompatibleClient(
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 ) {
+    companion object {
+        fun isRecoverableModelError(errorMsg: String?): Boolean {
+            if (errorMsg.isNullOrBlank()) return false
+            val lower = errorMsg.lowercase()
+            return lower.contains("404") ||
+                    lower.contains("410") ||
+                    lower.contains("503") ||
+                    lower.contains("429") ||
+                    lower.contains("model_not_found") ||
+                    lower.contains("not found") ||
+                    lower.contains("does not exist") ||
+                    lower.contains("not supported") ||
+                    lower.contains("deprecated") ||
+                    lower.contains("retired") ||
+                    lower.contains("unavailable") ||
+                    lower.contains("overloaded") ||
+                    lower.contains("resource_exhausted") ||
+                    lower.contains("resource exhausted") ||
+                    lower.contains("rate limit") ||
+                    lower.contains("quota")
+        }
+    }
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun chatCompletion(
@@ -55,20 +82,55 @@ class OpenAiCompatibleClient(
             }
 
             // 2. Standard OpenAI compatible (Gemini, Groq, OpenRouter, Ollama)
-            val url = if (cleanBaseUrl.endsWith("/chat/completions")) {
-                cleanBaseUrl
+            val effectiveBaseUrl = if (cleanBaseUrl.contains("generativelanguage.googleapis.com") && !cleanBaseUrl.contains("/openai")) {
+                "https://generativelanguage.googleapis.com/v1beta/openai"
             } else {
-                "$cleanBaseUrl/chat/completions"
+                cleanBaseUrl
+            }
+
+            val url = if (effectiveBaseUrl.endsWith("/chat/completions")) {
+                effectiveBaseUrl
+            } else {
+                "$effectiveBaseUrl/chat/completions"
             }
 
             val jsonMessages = JsonArray(
                 messages.map { msg ->
-                    JsonObject(
-                        mapOf(
-                            "role" to JsonPrimitive(msg.role),
-                            "content" to JsonPrimitive(msg.content)
+                    if (msg.imageBase64.isNullOrBlank()) {
+                        JsonObject(
+                            mapOf(
+                                "role" to JsonPrimitive(msg.role),
+                                "content" to JsonPrimitive(msg.content)
+                            )
                         )
-                    )
+                    } else {
+                        val contentParts = JsonArray(
+                            listOf(
+                                JsonObject(
+                                    mapOf(
+                                        "type" to JsonPrimitive("text"),
+                                        "text" to JsonPrimitive(msg.content.ifBlank { "Describe this image in detail" })
+                                    )
+                                ),
+                                JsonObject(
+                                    mapOf(
+                                        "type" to JsonPrimitive("image_url"),
+                                        "image_url" to JsonObject(
+                                            mapOf(
+                                                "url" to JsonPrimitive("data:${msg.imageMimeType ?: "image/jpeg"};base64,${msg.imageBase64}")
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                        JsonObject(
+                            mapOf(
+                                "role" to JsonPrimitive(msg.role),
+                                "content" to contentParts
+                            )
+                        )
+                    }
                 }
             )
 
@@ -124,12 +186,43 @@ class OpenAiCompatibleClient(
 
             val jsonMessages = JsonArray(
                 nonSystemMessages.map { msg ->
-                    JsonObject(
-                        mapOf(
-                            "role" to JsonPrimitive(if (msg.role == "assistant") "assistant" else "user"),
-                            "content" to JsonPrimitive(msg.content)
+                    if (msg.imageBase64.isNullOrBlank()) {
+                        JsonObject(
+                            mapOf(
+                                "role" to JsonPrimitive(if (msg.role == "assistant") "assistant" else "user"),
+                                "content" to JsonPrimitive(msg.content)
+                            )
                         )
-                    )
+                    } else {
+                        val contentParts = JsonArray(
+                            listOf(
+                                JsonObject(
+                                    mapOf(
+                                        "type" to JsonPrimitive("text"),
+                                        "text" to JsonPrimitive(msg.content.ifBlank { "Describe this image in detail" })
+                                    )
+                                ),
+                                JsonObject(
+                                    mapOf(
+                                        "type" to JsonPrimitive("image"),
+                                        "source" to JsonObject(
+                                            mapOf(
+                                                "type" to JsonPrimitive("base64"),
+                                                "media_type" to JsonPrimitive(msg.imageMimeType ?: "image/jpeg"),
+                                                "data" to JsonPrimitive(msg.imageBase64)
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                        JsonObject(
+                            mapOf(
+                                "role" to JsonPrimitive(if (msg.role == "assistant") "assistant" else "user"),
+                                "content" to contentParts
+                            )
+                        )
+                    }
                 }
             )
 
@@ -169,6 +262,76 @@ class OpenAiCompatibleClient(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    data class AutoDetectResult(
+        val success: Boolean,
+        val workingModel: String?,
+        val message: String
+    )
+
+    fun getCandidateModelsForProvider(provider: String): List<String> = when (provider.lowercase().trim()) {
+        "gemini" -> listOf(
+            "gemini-flash-lite-latest",
+            "gemini-3.5-flash-lite",
+            "gemini-3.5-flash",
+            "gemini-2.5-flash",
+            "gemini-3.6-flash"
+        )
+        "groq" -> listOf(
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant"
+        )
+        "openai" -> listOf(
+            "gpt-4o-mini",
+            "gpt-4o"
+        )
+        "openrouter" -> listOf(
+            "meta-llama/llama-3.3-70b-instruct",
+            "google/gemini-2.0-flash-001",
+            "deepseek/deepseek-r1:free"
+        )
+        "claude" -> listOf(
+            "claude-3-5-haiku-20241022",
+            "claude-3-5-sonnet-20241022"
+        )
+        else -> listOf("llama3.2")
+    }
+
+    suspend fun autoDetectAndTestWorkingModel(
+        provider: String,
+        baseUrl: String,
+        apiKey: String
+    ): AutoDetectResult {
+        val candidates = getCandidateModelsForProvider(provider)
+        var lastErr = "No models responded"
+        for (m in candidates) {
+            val res = testConnectionDetailed(baseUrl, m, apiKey)
+            if (res.isSuccess) {
+                return AutoDetectResult(
+                    success = true,
+                    workingModel = m,
+                    message = "Connected cleanly! Model auto-selected: $m"
+                )
+            } else {
+                val err = res.exceptionOrNull()?.message ?: "Error"
+                lastErr = err
+                // If it was 404 or 503, immediately try the next model candidate!
+                if (!err.contains("404") && !err.contains("503") && !err.contains("model_not_found")) {
+                    // If it's a fatal key error (like 401 unauthorized or 429 quota exhausted), don't waste time retrying
+                    if (err.contains("401") || err.contains("invalid_api_key") || err.contains("429") || err.contains("insufficient_quota")) {
+                        break
+                    }
+                }
+            }
+        }
+        return AutoDetectResult(
+            success = false,
+            workingModel = null,
+            message = lastErr
+        )
     }
 
     suspend fun testConnection(baseUrl: String, model: String, apiKey: String): Boolean {

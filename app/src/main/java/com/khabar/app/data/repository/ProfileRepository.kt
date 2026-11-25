@@ -23,6 +23,12 @@ class ProfileRepository(
 
     suspend fun getProfile(): ProfileEntity? = profileDao.getProfile()
 
+    suspend fun getAllCourses(): List<CourseEntity> = courseDao.getAllCourses()
+
+    suspend fun updateCourseAbsences(id: Long, absences: Int) {
+        courseDao.updateAbsences(id, absences.coerceAtLeast(0))
+    }
+
     suspend fun saveProfile(profile: ProfileEntity) {
         profileDao.insertOrUpdate(profile)
     }
@@ -88,7 +94,7 @@ class ProfileRepository(
             standing = "Junior",
             campus = "Main",
             major = "Marketing",
-            portalUrl = "https://portal.iba.edu.pk",
+            portalUrl = AppConfig.PORTAL_URL,
             digestEnabled = true,
             digestTime = "07:30",
             quietDuringClass = false,

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -30,7 +31,8 @@ data class RemindersUiState(
 )
 
 class RemindersViewModel(
-    private val reminderRepository: ReminderRepository
+    private val reminderRepository: ReminderRepository,
+    private val userPreferences: com.khabar.app.data.local.UserPreferences? = null
 ) : ViewModel() {
 
     private val _currentTimeMs = MutableStateFlow(System.currentTimeMillis())
@@ -88,7 +90,9 @@ class RemindersViewModel(
         dueAt: Long
     ) {
         viewModelScope.launch {
-            val triggerAt = (dueAt - 7200_000L).coerceAtLeast(System.currentTimeMillis() + 60_000L)
+            val leadMinutes = userPreferences?.deadlineAlarmLeadMinutesFlow?.first() ?: 120
+            val leadTimeMs = leadMinutes * 60_000L
+            val triggerAt = (dueAt - leadTimeMs).coerceAtLeast(System.currentTimeMillis() + 60_000L)
             val reminder = ReminderEntity(
                 title = title.trim(),
                 courseCode = courseCode?.trim()?.ifBlank { null },
@@ -98,24 +102,16 @@ class RemindersViewModel(
             )
             val id = reminderRepository.insertReminder(reminder)
 
-            // Set system alarm
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-            val intent = Intent(context, AlarmReminderReceiver::class.java).apply {
-                putExtra("reminder_id", id)
-                putExtra("reminder_title", reminder.title)
-                putExtra("course_code", reminder.courseCode)
+            val alarmEnabled = userPreferences?.deadlineAlarmEnabledFlow?.first() ?: true
+            if (alarmEnabled) {
+                com.khabar.app.notifications.ReminderScheduler.schedule(
+                    context = context,
+                    id = id,
+                    title = reminder.title,
+                    courseCode = reminder.courseCode,
+                    remindAt = triggerAt
+                )
             }
-            val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                id.hashCode(),
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            alarmManager?.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                triggerAt,
-                pendingIntent
-            )
         }
     }
 

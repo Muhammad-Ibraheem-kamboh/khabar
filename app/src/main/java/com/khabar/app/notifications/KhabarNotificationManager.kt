@@ -9,6 +9,7 @@ import android.provider.AlarmClock
 import android.provider.CalendarContract
 import androidx.core.app.NotificationCompat
 import com.khabar.app.R
+import com.khabar.app.config.AppConfig
 import com.khabar.app.data.local.entities.MailEntity
 import com.khabar.app.domain.model.AlertLevel
 import com.khabar.app.domain.model.MailBucket
@@ -87,6 +88,17 @@ class KhabarNotificationManager(
         val bigText = bulletsList.joinToString("\n• ", prefix = if (bulletsList.isNotEmpty()) "• " else "")
             .ifEmpty { mail.bodyText.take(150) }
 
+        // Smart Priority Notifications: Urgent matters (exams, deadlines, fees, class changes) get HIGH priority with heads-up; ordinary notices get DEFAULT
+        val isUrgentCategory = category == MailCategory.CLASS_CHANGE ||
+                category == MailCategory.EXAM ||
+                category == MailCategory.DEADLINE ||
+                category == MailCategory.FEE ||
+                category == MailCategory.ATTENDANCE ||
+                category == MailCategory.REGISTRATION ||
+                dueSoon
+
+        val notificationPriority = if (isUrgentCategory) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT
+
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(category.colorHex.toInt())
@@ -94,7 +106,7 @@ class KhabarNotificationManager(
             .setContentText(mail.bodyText.take(90))
             .setSubText("Why: $firstReason")
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(notificationPriority)
             .setAutoCancel(true)
             .setGroup("khabar_${category.idString.lowercase()}")
             .setContentIntent(contentPendingIntent)
@@ -167,7 +179,7 @@ class KhabarNotificationManager(
         val openLinkAction = NotificationCompat.Action(
             0,
             "Open link",
-            createOpenLinkPendingIntent(mail.link ?: "https://portal.iba.edu.pk", mail.id)
+            createOpenLinkPendingIntent(mail.link ?: AppConfig.PORTAL_URL, mail.id)
         )
         val markDoneAction = NotificationCompat.Action(
             0,
@@ -177,7 +189,7 @@ class KhabarNotificationManager(
         val openPortalAction = NotificationCompat.Action(
             0,
             "Open portal",
-            createOpenLinkPendingIntent("https://portal.iba.edu.pk", mail.id)
+            createOpenLinkPendingIntent(AppConfig.PORTAL_URL, mail.id)
         )
         val emailOfficeAction = NotificationCompat.Action(
             0,
@@ -283,12 +295,14 @@ class KhabarNotificationManager(
     private fun createAlarmPendingIntent(mail: MailEntity): PendingIntent {
         val start = mail.eventStart ?: (System.currentTimeMillis() + 7200000)
         val alarmTimeMs = start - (2 * 3600000)
-        val localTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(alarmTimeMs), ZoneId.systemDefault())
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = alarmTimeMs }
+        val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+        val minute = cal.get(java.util.Calendar.MINUTE)
 
         val alarmIntent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
             putExtra(AlarmClock.EXTRA_MESSAGE, mail.headline)
-            putExtra(AlarmClock.EXTRA_HOUR, localTime.hour)
-            putExtra(AlarmClock.EXTRA_MINUTES, localTime.minute)
+            putExtra(AlarmClock.EXTRA_HOUR, hour)
+            putExtra(AlarmClock.EXTRA_MINUTES, minute)
             putExtra(AlarmClock.EXTRA_SKIP_UI, false)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }

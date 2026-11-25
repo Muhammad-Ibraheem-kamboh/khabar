@@ -78,15 +78,22 @@ enum class AiPreset(
         title = "Gemini",
         subtitle = "Free",
         baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai",
-        model = "gemini-2.5-flash",
+        model = "gemini-3.5-flash-lite",
         getKeyUrl = "https://aistudio.google.com/app/apikey"
     ),
     GROQ(
         title = "Groq",
         subtitle = "Free & Fast",
         baseUrl = "https://api.groq.com/openai/v1",
-        model = "llama-3.3-70b-versatile",
+        model = "openai/gpt-oss-120b",
         getKeyUrl = "https://console.groq.com/keys"
+    ),
+    OPENAI(
+        title = "OpenAI",
+        subtitle = "GPT-4o Mini",
+        baseUrl = "https://api.openai.com/v1",
+        model = "gpt-4o-mini",
+        getKeyUrl = "https://platform.openai.com/api-keys"
     ),
     OPENROUTER(
         title = "OpenRouter",

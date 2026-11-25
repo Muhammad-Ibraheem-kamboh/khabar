@@ -68,10 +68,9 @@ class InstantNotificationListenerService : NotificationListenerService() {
         // 2. Ignore own package
         if (pkg == packageName) return
 
-        // 3. Ignore ongoing notifications or group summaries
+        // 3. Ignore ongoing notifications (alarms, downloads)
         val notification = sbn.notification ?: return
         if ((notification.flags and Notification.FLAG_ONGOING_EVENT) != 0) return
-        if ((notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
 
         val extras = notification.extras ?: return
 
@@ -87,6 +86,12 @@ class InstantNotificationListenerService : NotificationListenerService() {
         val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
         val lines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n") ?: ""
+
+        // Skip pure group headers that have no meaningful subject or lines
+        val isGroupSummary = (notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0
+        if (isGroupSummary && text.isBlank() && lines.isBlank() && bigText.isBlank()) {
+            return
+        }
 
         val preview = when {
             bigText.isNotBlank() -> bigText
@@ -124,14 +129,36 @@ class InstantNotificationListenerService : NotificationListenerService() {
         }
 
         val app = applicationContext as KhabarApp
+
+        // Clean sender and email extraction for Outlook / Gmail notifications
+        val isIbaContext = pkg.contains("outlook", ignoreCase = true) ||
+                subText.contains("iba.edu.pk", ignoreCase = true) ||
+                title.contains("iba", ignoreCase = true) ||
+                text.contains("iba", ignoreCase = true) ||
+                preview.contains("iba.edu.pk", ignoreCase = true)
+
+        // If subText is an email address, extract it
+        val emailRegex = Regex("""[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}""")
+        val foundEmailInText = emailRegex.find(title)?.value
+            ?: emailRegex.find(preview)?.value
+            ?: if (emailRegex.matches(subText.trim())) subText.trim() else null
+
+        val effectiveSenderEmail = foundEmailInText ?: if (isIbaContext) "announcements@iba.edu.pk" else null
+        val effectiveSender = when {
+            title.isNotBlank() && !title.contains("@") -> title.trim()
+            subText.isNotBlank() && !subText.contains("@") -> subText.trim()
+            isIbaContext -> "IBA Campus Notice"
+            else -> title.ifBlank { "University Mail" }
+        }
+
         val rawMail = RawMail(
             id = "instant_${sbn.id}_${sbn.postTime}",
             sourceId = "instant_source",
-            sender = title.ifBlank { "University Mail" },
-            senderEmail = subText.ifBlank { null },
-            subject = text.ifBlank { title },
+            sender = effectiveSender,
+            senderEmail = effectiveSenderEmail,
+            subject = text.ifBlank { title.ifBlank { "Campus Notice" } },
             bodyText = preview.ifBlank { text },
-            receivedAt = sbn.postTime,
+            receivedAt = if (sbn.postTime > 0) sbn.postTime else System.currentTimeMillis(),
             isPreviewOnly = true,
             hasAttachments = false,
             link = null,
@@ -142,12 +169,18 @@ class InstantNotificationListenerService : NotificationListenerService() {
         InstantMailSource.emitMail(rawMail)
 
         CoroutineScope(Dispatchers.IO).launch {
-            val processed = app.container.mailRepository.processAndSaveIncoming(rawMail)
+            try {
+                android.util.Log.d("InstantNotification", "Processing incoming mail from ${rawMail.sender}: ${rawMail.subject}")
+                val processed = app.container.mailRepository.processAndSaveIncoming(rawMail)
+                android.util.Log.d("InstantNotification", "Successfully saved mail ${processed.id} as ${processed.bucket}")
 
-            // Optional setting: Dismiss original notification if mail is Hidden
-            val dismissHidden = app.container.userPreferences.dismissHiddenNotificationsFlow.first()
-            if (dismissHidden && processed.bucket == MailBucket.HIDDEN.name) {
-                cancelNotification(sbn.key)
+                // Optional setting: Dismiss original notification if mail is Hidden
+                val dismissHidden = app.container.userPreferences.dismissHiddenNotificationsFlow.first()
+                if (dismissHidden && processed.bucket == MailBucket.HIDDEN.name) {
+                    cancelNotification(sbn.key)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("InstantNotification", "Failed to process incoming mail: ${e.message}", e)
             }
         }
     }

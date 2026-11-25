@@ -1,0 +1,12 @@
+# Antigravity Context Filter - Prevent token bloat
+.gradle/
+.kotlin/
+build/
+app/build/
+gradle/
+*.apk
+*.aab
+*.db
+*.sqlite
+*.log
+.git/

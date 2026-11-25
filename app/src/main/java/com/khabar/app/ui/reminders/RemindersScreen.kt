@@ -1,5 +1,7 @@
 package com.khabar.app.ui.reminders
 
+import android.content.Intent
+import android.provider.CalendarContract
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -318,6 +320,32 @@ private fun ReminderRow(
                 color = if (isUrgent) IosOrange else IosSecondaryText
             )
         }
+
+        val rowContext = LocalContext.current
+        IconButton(
+            onClick = {
+                val intent = Intent(Intent.ACTION_INSERT).apply {
+                    data = CalendarContract.Events.CONTENT_URI
+                    putExtra(CalendarContract.Events.TITLE, reminder.title)
+                    putExtra(CalendarContract.Events.DESCRIPTION, "Course: ${reminder.courseCode ?: "Campus"}\nTracked via Khabar App")
+                    putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, reminder.dueAt)
+                    putExtra(CalendarContract.EXTRA_EVENT_END_TIME, reminder.dueAt + 3600_000L)
+                }
+                try {
+                    rowContext.startActivity(intent)
+                } catch (_: Exception) {}
+            },
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.EventAvailable,
+                contentDescription = "Sync to Calendar",
+                tint = KhabarBlue,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(4.dp))
 
         IconButton(
             onClick = onDelete,

@@ -48,6 +48,10 @@ class ReminderRepository(
         reminderDao.deleteById(id)
     }
 
+    suspend fun deleteDemoReminders() {
+        reminderDao.deleteDemoReminders()
+    }
+
     suspend fun clearAll() {
         reminderDao.clear()
     }

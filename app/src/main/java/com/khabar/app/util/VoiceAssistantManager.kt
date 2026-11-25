@@ -7,6 +7,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.util.Locale
@@ -38,6 +39,24 @@ class VoiceAssistantManager(private val context: Context) : RecognitionListener,
         if (status == TextToSpeech.SUCCESS) {
             isTtsInitialized = true
             tts?.language = Locale.ENGLISH
+            tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) {
+                    _isSpeaking.value = true
+                }
+
+                override fun onDone(utteranceId: String?) {
+                    _isSpeaking.value = false
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun onError(utteranceId: String?) {
+                    _isSpeaking.value = false
+                }
+
+                override fun onError(utteranceId: String?, errorCode: Int) {
+                    _isSpeaking.value = false
+                }
+            })
         }
     }
 
@@ -87,9 +106,10 @@ class VoiceAssistantManager(private val context: Context) : RecognitionListener,
         if (!isTtsInitialized || tts == null) return
         stopListening()
 
-        // Clean markdown symbols (e.g. *, #, `) before speech for natural voice
+        // Clean markdown, URLs, and emoji symbols before speech for natural voice
         val cleanText = text
-            .replace(Regex("[#*`_~>\\[\\]()]"), "")
+            .replace(Regex("https?://\\S+"), "")
+            .replace(Regex("[#*`_~>\\[\\]()|•📌⚡💡📅📚📢📧🎓💰⚠️✓]"), "")
             .replace(Regex("\\s+"), " ")
             .trim()
 
@@ -109,6 +129,14 @@ class VoiceAssistantManager(private val context: Context) : RecognitionListener,
             tts?.stop()
         } catch (_: Exception) {}
         _isSpeaking.value = false
+    }
+
+    fun toggleSpeak(text: String, languageCode: String = "en") {
+        if (_isSpeaking.value) {
+            stopSpeaking()
+        } else {
+            speak(text, languageCode)
+        }
     }
 
     // RecognitionListener Callbacks

@@ -284,11 +284,8 @@ class OnboardingViewModel(
 
     fun autoDetectCoursesFromMails() {
         viewModelScope.launch {
-            var mails = mailRepository.getRecentMails(50)
-            if (mails.isEmpty()) {
-                mailRepository.loadSampleMails()
-                mails = mailRepository.getRecentMails(50)
-            }
+            val mails = mailRepository.getRecentMails(50)
+            if (mails.isEmpty()) return@launch
             val detected = mutableListOf<CourseEntity>()
             val regex = Regex("\\b([A-Z]{2,4})\\s?-?(\\d{3})\\b", RegexOption.IGNORE_CASE)
             for (mail in mails) {

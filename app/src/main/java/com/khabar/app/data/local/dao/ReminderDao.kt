@@ -41,6 +41,9 @@ interface ReminderDao {
     @Query("DELETE FROM reminders WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("DELETE FROM reminders WHERE mailId LIKE 'mail_%' OR mailId LIKE 'demo_%'")
+    suspend fun deleteDemoReminders()
+
     @Query("DELETE FROM reminders")
     suspend fun clear()
 }

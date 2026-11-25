@@ -17,7 +17,9 @@ import com.khabar.app.data.local.entities.MailEntity
 import com.khabar.app.data.local.entities.NotificationChannelVersionEntity
 import com.khabar.app.data.local.entities.ProfileEntity
 import com.khabar.app.data.local.entities.ReminderEntity
+import com.khabar.app.data.local.dao.AiDefectLogDao
 import com.khabar.app.data.local.dao.ChatDao
+import com.khabar.app.data.local.entities.AiDefectLogEntity
 import com.khabar.app.data.local.entities.ChatMessageEntity
 import com.khabar.app.data.local.entities.SenderOverrideEntity
 import com.khabar.app.data.local.entities.UnknownCoursePromptEntity
@@ -32,9 +34,10 @@ import com.khabar.app.data.local.entities.UnknownCoursePromptEntity
         SenderOverrideEntity::class,
         UnknownCoursePromptEntity::class,
         NotificationChannelVersionEntity::class,
-        ChatMessageEntity::class
+        ChatMessageEntity::class,
+        AiDefectLogEntity::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -47,10 +50,20 @@ abstract class KhabarDatabase : RoomDatabase() {
     abstract fun reminderDao(): ReminderDao
     abstract fun feedbackDao(): FeedbackDao
     abstract fun chatDao(): ChatDao
+    abstract fun aiDefectLogDao(): AiDefectLogDao
 
     companion object {
         @Volatile
         private var INSTANCE: KhabarDatabase? = null
+
+        val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE courses ADD COLUMN absences INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE courses ADD COLUMN maxAbsences INTEGER NOT NULL DEFAULT 5")
+                } catch (_: Exception) {}
+            }
+        }
 
         fun getInstance(context: Context): KhabarDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -58,7 +71,9 @@ abstract class KhabarDatabase : RoomDatabase() {
                     context.applicationContext,
                     KhabarDatabase::class.java,
                     "khabar.db"
-                ).fallbackToDestructiveMigration().build()
+                ).addMigrations(MIGRATION_4_5)
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

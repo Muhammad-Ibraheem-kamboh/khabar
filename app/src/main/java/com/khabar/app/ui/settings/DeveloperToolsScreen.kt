@@ -133,33 +133,11 @@ fun DeveloperToolsScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SecondaryButton(
-                            text = "Load Sample Profile (Ali Raza, BSCS Fall 23)",
+                            text = "Purge Any Demo / Sample Emails & Reminders",
                             onClick = {
                                 coroutineScope.launch {
-                                    profileRepository.saveAcademicProfile(
-                                        firstName = "Ali",
-                                        lastName = "Raza",
-                                        programCode = "BSCS",
-                                        joinTerm = "Fall 23",
-                                        campus = "Main Campus",
-                                        courses = listOf(
-                                            CourseEntity(code = "CS201", section = "A", name = "Data Structures"),
-                                            CourseEntity(code = "CS204", section = "A", name = "Computer Organization"),
-                                            CourseEntity(code = "MTH201", section = "B", name = "Differential Equations"),
-                                            CourseEntity(code = "SS102", section = "A", name = "Pakistan History")
-                                        )
-                                    )
-                                    statusMessage = "Loaded demo profile (Ali Raza, BSCS Fall 23)."
-                                }
-                            }
-                        )
-
-                        SecondaryButton(
-                            text = "Load All 30 Realistic Sample Mails",
-                            onClick = {
-                                coroutineScope.launch {
-                                    val count = mailRepository.loadSampleMails()
-                                    statusMessage = "Loaded $count sample emails into database."
+                                    mailRepository.clearSampleMails()
+                                    statusMessage = "Cleared all sample data from database."
                                 }
                             }
                         )

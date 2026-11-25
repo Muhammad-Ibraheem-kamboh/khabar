@@ -26,7 +26,8 @@ class MailRepository(
     private val rulesEngine: RulesEngine,
     private val offlineSummarizer: OfflineSummarizer,
     private val notificationManager: KhabarNotificationManager,
-    private val mailSources: List<MailSource>
+    private val mailSources: List<MailSource>,
+    private val reminderRepository: ReminderRepository? = null
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -35,6 +36,9 @@ class MailRepository(
     val unreadImportantCountFlow: Flow<Int> = mailDao.getUnreadImportantCountFlow()
     val unreadCountFlow: Flow<Int> get() = unreadImportantCountFlow
     val pendingCoursePromptFlow: Flow<UnknownCoursePromptEntity?> = feedbackDao.getPendingUnknownCoursePromptFlow()
+
+    // Real-time notification-to-dashboard pipeline event flow
+    val mailReceivedEvents = kotlinx.coroutines.flow.MutableSharedFlow<MailEntity>(extraBufferCapacity = 50)
 
     fun getMailsByBucket(bucket: MailBucket, ibaOnly: Boolean = false): Flow<List<MailEntity>> {
         return if (ibaOnly) {
@@ -56,7 +60,12 @@ class MailRepository(
     }
 
     fun getTodayStatsFlow(): Triple<Flow<Int>, Flow<Int>, Flow<Int>> {
-        val todayStartMs = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val cal = java.util.Calendar.getInstance()
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0)
+        cal.set(java.util.Calendar.MILLISECOND, 0)
+        val todayStartMs = cal.timeInMillis
         return Triple(
             mailDao.getTodayReceivedCountFlow(todayStartMs),
             mailDao.getTodayForYouCountFlow(todayStartMs),
@@ -160,6 +169,12 @@ class MailRepository(
         )
 
         mailDao.insertOrUpdate(entity)
+        mailReceivedEvents.tryEmit(entity)
+
+        // Deadline Intelligence: Auto-extract deadlines and schedule reminders
+        try {
+            autoCreateDeadlineReminder(entity)
+        } catch (_: Exception) {}
 
         // 5. Trigger notification if needed
         notificationManager.postMailNotification(
@@ -264,11 +279,52 @@ class MailRepository(
 
     suspend fun clearSampleMails() {
         mailDao.deleteDemoMails()
+        reminderRepository?.deleteDemoReminders()
     }
 
     suspend fun clearAll() {
         mailDao.clear()
         feedbackDao.clearOverrides()
         feedbackDao.clearPrompts()
+    }
+
+    /**
+     * Deadline Intelligence: Automatically extracts deadlines (fees, exams, registrations, quizzes)
+     * from university communications and schedules reminders.
+     */
+    private suspend fun autoCreateDeadlineReminder(mail: MailEntity) {
+        val repo = reminderRepository ?: return
+        val existing = repo.getReminderByMailId(mail.id)
+        if (existing != null) return
+
+        val category = mail.category.uppercase()
+        val isDeadlineCategory = category.contains("DEADLINE") ||
+                category.contains("FEE") ||
+                category.contains("EXAM") ||
+                category.contains("QUIZ") ||
+                category.contains("REGISTRATION") ||
+                category.contains("ASSIGNMENT")
+
+        val dueAt = mail.eventStart ?: if (isDeadlineCategory) {
+            // If no explicit eventStart, set default due in 3 days from receipt
+            mail.receivedAt + (3L * 24 * 3600 * 1000)
+        } else null
+
+        if (dueAt != null && dueAt > System.currentTimeMillis()) {
+            val remindAt = if (dueAt - System.currentTimeMillis() > 24 * 3600 * 1000) {
+                dueAt - (24 * 3600 * 1000) // 1 day before
+            } else {
+                dueAt - (2 * 3600 * 1000)  // 2 hours before
+            }
+            repo.insertReminder(
+                com.khabar.app.data.local.entities.ReminderEntity(
+                    mailId = mail.id,
+                    title = "Deadline: ${mail.headline.ifBlank { mail.subject }}",
+                    courseCode = mail.courseCode,
+                    dueAt = dueAt,
+                    remindAt = remindAt.coerceAtLeast(System.currentTimeMillis())
+                )
+            )
+        }
     }
 }

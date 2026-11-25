@@ -55,3 +55,11 @@
 # --- Misc ---
 -dontwarn java.beans.**
 -dontwarn javax.naming.**
+
+# --- Khabar AI & Utilities (Auto-Detect, Benchmarking & Serialization) ---
+-keep class com.khabar.app.ai.** { *; }
+-keepclassmembers class com.khabar.app.ai.** { *; }
+-dontwarn com.khabar.app.ai.**
+-keep class com.khabar.app.util.** { *; }
+-keepclassmembers class com.khabar.app.util.** { *; }
+

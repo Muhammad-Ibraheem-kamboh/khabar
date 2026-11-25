@@ -29,6 +29,9 @@ interface CourseDao {
     @Update
     suspend fun update(course: CourseEntity)
 
+    @Query("UPDATE courses SET absences = :absences WHERE id = :id")
+    suspend fun updateAbsences(id: Long, absences: Int)
+
     @Delete
     suspend fun delete(course: CourseEntity)
 

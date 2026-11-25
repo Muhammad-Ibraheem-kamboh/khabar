@@ -12,7 +12,9 @@ data class CourseEntity(
     val name: String = "",
     val teacherName: String = "",
     val teacherEmail: String = "",
-    val slotsJson: String = "[]" // JSON array of slots: [{"day":"Mon","start":"09:00","end":"10:15"}]
+    val slotsJson: String = "[]", // JSON array of slots: [{"day":"Mon","start":"09:00","end":"10:15"}]
+    val absences: Int = 0,
+    val maxAbsences: Int = 5
 ) {
     @get:Ignore
     val courseCode: String get() = code

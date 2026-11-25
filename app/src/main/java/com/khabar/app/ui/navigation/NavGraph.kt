@@ -45,6 +45,8 @@ import com.khabar.app.ui.onboarding.Screen7ConnectMail
 import com.khabar.app.ui.onboarding.Screen8Permissions
 import com.khabar.app.ui.reminders.RemindersScreen
 import com.khabar.app.ui.reminders.RemindersViewModel
+import com.khabar.app.ui.settings.AiDefectVaultScreen
+import com.khabar.app.ui.settings.AiDefectVaultViewModel
 import com.khabar.app.ui.settings.AiSettingsScreen
 import com.khabar.app.ui.settings.AlertSoundsScreen
 import com.khabar.app.ui.settings.DeveloperToolsScreen
@@ -77,6 +79,17 @@ fun NavGraph(
             userPreferences = appContainer.userPreferences
         )
     }
+    val khabriViewModel = remember {
+        com.khabar.app.ui.chat.KhabriChatViewModel(
+            chatRepository = appContainer.chatRepository,
+            voiceAssistantManager = appContainer.voiceAssistantManager,
+            secretManager = appContainer.keystoreSecretManager,
+            openAiClient = appContainer.openAiClient,
+            userPreferences = appContainer.userPreferences,
+            aiDefectManager = appContainer.aiDefectManager
+        )
+    }
+    var mainSelectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
 
     NavHost(
         navController = navController,
@@ -195,13 +208,6 @@ fun NavGraph(
         composable(Screen.OnboardingConnectMail.route) {
             Screen7ConnectMail(
                 onContinueToPermissions = { navController.navigate(Screen.OnboardingPermissions.route) },
-                onLoadSampleMailsAndFinish = {
-                    onboardingViewModel.loadSampleDataAndProceed {
-                        navController.navigate(Screen.Main.route) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
-                },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -221,19 +227,17 @@ fun NavGraph(
 
         // MAIN TABS
         composable(Screen.Main.route) {
-            // rememberSaveable ensures tab state survives child route push/pop and configuration changes
-            var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
-
             // Standard Android behavior: Back press on any non-primary tab returns to TODAY tab
-            BackHandler(enabled = selectedTab != MainTab.TODAY) {
-                selectedTab = MainTab.TODAY
+            BackHandler(enabled = mainSelectedTab != MainTab.TODAY) {
+                mainSelectedTab = MainTab.TODAY
             }
 
             val todayViewModel = remember {
                 TodayViewModel(
                     mailRepository = appContainer.mailRepository,
                     profileRepository = appContainer.profileRepository,
-                    reminderRepository = appContainer.reminderRepository
+                    reminderRepository = appContainer.reminderRepository,
+                    userPreferences = appContainer.userPreferences
                 )
             }
             val mailsViewModel = remember {
@@ -243,14 +247,8 @@ fun NavGraph(
                 )
             }
             val remindersViewModel = remember {
-                RemindersViewModel(reminderRepository = appContainer.reminderRepository)
-            }
-            val khabriViewModel = remember {
-                com.khabar.app.ui.chat.KhabriChatViewModel(
-                    chatRepository = appContainer.chatRepository,
-                    voiceAssistantManager = appContainer.voiceAssistantManager,
-                    secretManager = appContainer.keystoreSecretManager,
-                    openAiClient = appContainer.openAiClient,
+                RemindersViewModel(
+                    reminderRepository = appContainer.reminderRepository,
                     userPreferences = appContainer.userPreferences
                 )
             }
@@ -271,8 +269,15 @@ fun NavGraph(
             val density = androidx.compose.ui.platform.LocalDensity.current
             val isKeyboardOpen = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(density) > 0
 
+            val openFreshKhabriChat: (forceNew: Boolean) -> Unit = { forceNew ->
+                if (forceNew || khabriViewModel.messages.value.isNotEmpty()) {
+                    khabriViewModel.startNewChat()
+                }
+                mainSelectedTab = MainTab.KHABRI
+            }
+
             Box(modifier = Modifier.fillMaxSize()) {
-                when (selectedTab) {
+                when (mainSelectedTab) {
                     MainTab.TODAY -> {
                         TodayScreen(
                             viewModel = todayViewModel,
@@ -280,10 +285,13 @@ fun NavGraph(
                                 navController.navigate(Screen.MailDetail.createRoute(mailId))
                             },
                             onNavigateToMails = {
-                                selectedTab = MainTab.MAILS
+                                mainSelectedTab = MainTab.MAILS
                             },
                             onNavigateToKhabri = {
-                                selectedTab = MainTab.KHABRI
+                                openFreshKhabriChat(false)
+                            },
+                            onNavigateToPortalWeb = {
+                                navController.navigate(Screen.PortalWeb.route)
                             }
                         )
                     }
@@ -303,7 +311,10 @@ fun NavGraph(
                     MainTab.KHABRI -> {
                         com.khabar.app.ui.chat.KhabriChatScreen(
                             viewModel = khabriViewModel,
-                            bottomPadding = if (isKeyboardOpen) 0.dp else 92.dp
+                            bottomPadding = if (isKeyboardOpen) 0.dp else 92.dp,
+                            onNavigateToAiDefectVault = {
+                                navController.navigate(Screen.AiDefectVault.route)
+                            }
                         )
                     }
                     MainTab.SETTINGS -> {
@@ -317,6 +328,12 @@ fun NavGraph(
                             },
                             onNavigateToAiSettings = {
                                 navController.navigate(Screen.AiSettings.route)
+                            },
+                            onNavigateToAiDefectVault = {
+                                navController.navigate(Screen.AiDefectVault.route)
+                            },
+                            onNavigateToPortalWeb = {
+                                navController.navigate(Screen.PortalWeb.route)
                             },
                             onNavigateToDevTools = {
                                 navController.navigate(Screen.DeveloperTools.route)
@@ -337,8 +354,15 @@ fun NavGraph(
                     modifier = Modifier.align(Alignment.BottomCenter)
                 ) {
                     FloatingTabBar(
-                        selectedTab = selectedTab,
-                        onTabSelected = { selectedTab = it },
+                        selectedTab = mainSelectedTab,
+                        onTabSelected = { tab ->
+                            if (tab == MainTab.KHABRI) {
+                                val isReselection = (mainSelectedTab == MainTab.KHABRI)
+                                openFreshKhabriChat(isReselection)
+                            } else {
+                                mainSelectedTab = tab
+                            }
+                        },
                         unreadMailsCount = unreadCount
                     )
                 }
@@ -406,6 +430,31 @@ fun NavGraph(
                 mailRepository = appContainer.mailRepository,
                 profileRepository = appContainer.profileRepository,
                 notificationManager = appContainer.notificationManager,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.AiDefectVault.route) {
+            val defectViewModel = remember {
+                AiDefectVaultViewModel(appContainer.aiDefectManager)
+            }
+            AiDefectVaultScreen(
+                viewModel = defectViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.PortalWeb.route) {
+            com.khabar.app.ui.portal.PortalWebScreen(
+                userPreferences = appContainer.userPreferences,
+                mailRepository = appContainer.mailRepository,
+                profileRepository = appContainer.profileRepository,
+                onAskKhabri = { title, text ->
+                    khabriViewModel.startNewChat()
+                    khabriViewModel.attachPortalPageContext(title, text)
+                    mainSelectedTab = MainTab.KHABRI
+                    navController.popBackStack()
+                },
                 onBack = { navController.popBackStack() }
             )
         }

@@ -124,13 +124,39 @@ class AiSummarizer(
             }
         """.trimIndent()
 
-        val callResult = client.chatCompletion(
+        var callResult = client.chatCompletion(
             baseUrl = baseUrl,
             apiKey = apiKey,
             model = model,
             systemPrompt = systemPrompt,
             userPrompt = userPrompt
         )
+
+        // Silent Auto-Healing Model Fallback: If 404, 410, 503 or model deprecated, try alternate models
+        if (callResult.isFailure) {
+            val err = callResult.exceptionOrNull()?.message ?: ""
+            if (OpenAiCompatibleClient.isRecoverableModelError(err)) {
+                val provider = secretManager.getAiProvider()
+                val altModels = (KeystoreSecretManager.getFallbackModels(provider) + client.getCandidateModelsForProvider(provider))
+                    .distinct()
+                    .filter { it != model }
+
+                for (alt in altModels) {
+                    val retry = client.chatCompletion(
+                        baseUrl = baseUrl,
+                        apiKey = apiKey,
+                        model = alt,
+                        systemPrompt = systemPrompt,
+                        userPrompt = userPrompt
+                    )
+                    if (retry.isSuccess) {
+                        callResult = retry
+                        secretManager.saveAiSettings(provider, baseUrl, alt)
+                        break
+                    }
+                }
+            }
+        }
 
         return callResult.mapCatching { responseText ->
             val parsed = parseResponse(responseText)

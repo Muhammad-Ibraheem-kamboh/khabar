@@ -1,11 +1,9 @@
 package com.khabar.app.util
 
 import com.khabar.app.domain.model.SummaryLanguage
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 object DateUtils {
@@ -64,29 +62,26 @@ object DateUtils {
         val hours = minutes / 60
         val days = hours / 24
 
-        val zoneId = ZoneId.systemDefault()
-        val mailDate = LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMs), zoneId)
-        val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
+        val date = Date(epochMs)
+        val timeFormat = SimpleDateFormat("h:mm a", Locale.ENGLISH)
 
         return when {
             minutes < 2 -> "Just now"
             minutes < 60 -> "${minutes}m ago"
-            hours < 24 -> mailDate.format(timeFormatter)
+            hours < 24 -> timeFormat.format(date)
             days == 1L -> "Yesterday"
-            days < 7 -> mailDate.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH))
-            else -> mailDate.format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))
+            days < 7 -> SimpleDateFormat("EEE", Locale.ENGLISH).format(date)
+            else -> SimpleDateFormat("d MMM", Locale.ENGLISH).format(date)
         }
     }
 
     fun formatTodayDate(nowEpochMs: Long = System.currentTimeMillis()): String {
-        val dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(nowEpochMs), ZoneId.systemDefault())
-        return dateTime.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH))
+        return SimpleDateFormat("EEEE, d MMMM", Locale.ENGLISH).format(Date(nowEpochMs))
     }
 
     fun formatRelative(epochMs: Long): String = formatRelativeTime(epochMs)
 
     fun formatFullDate(epochMs: Long): String {
-        val dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMs), ZoneId.systemDefault())
-        return dateTime.format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy 'at' h:mm a", Locale.ENGLISH))
+        return SimpleDateFormat("EEE, d MMM yyyy 'at' h:mm a", Locale.ENGLISH).format(Date(epochMs))
     }
 }

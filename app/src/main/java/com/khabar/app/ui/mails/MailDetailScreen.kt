@@ -419,15 +419,20 @@ private fun SummaryTabContent(
                     leadingIcon = Icons.Rounded.CalendarToday,
                     onClick = {
                         val start = mail.extractedDateEpoch ?: (System.currentTimeMillis() + 86400_000L)
+                        val fullDescription = "Original Email: ${mail.subject}\nFrom: ${mail.sender} (${mail.senderEmail ?: "Campus"})\n\nKey Details:\n${mail.summaryText}\n\n(Synced via Khabar Campus Calendar)"
                         val intent = Intent(Intent.ACTION_INSERT).apply {
                             data = CalendarContract.Events.CONTENT_URI
                             putExtra(CalendarContract.Events.TITLE, mail.headline.ifBlank { mail.subject })
-                            putExtra(CalendarContract.Events.DESCRIPTION, mail.summaryText)
+                            putExtra(CalendarContract.Events.DESCRIPTION, fullDescription)
                             putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, start)
                             putExtra(CalendarContract.EXTRA_EVENT_END_TIME, start + 3600_000L)
+                            mail.extractedRoom?.let { putExtra(CalendarContract.Events.EVENT_LOCATION, it) }
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }
-                        if (intent.resolveActivity(context.packageManager) != null) {
+                        try {
                             context.startActivity(intent)
+                        } catch (_: Exception) {
+                            android.widget.Toast.makeText(context, "No calendar application found", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 )

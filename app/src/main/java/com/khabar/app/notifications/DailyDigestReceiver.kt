@@ -29,17 +29,30 @@ class DailyDigestReceiver : BroadcastReceiver() {
             val upcomingReminders = app.container.reminderRepository.allRemindersFlow.first()
                 .filter { !it.done && it.dueAt >= nowMs }
 
+            val courses = app.container.profileRepository.getAllCourses()
+            val todayClasses = com.khabar.app.util.ClassScheduleHelper.getTodayClasses(courses, nowMs)
+
             val importantCount = topMails.count { !it.read }
             val reminderCount = upcomingReminders.size
+            val classCount = todayClasses.size
+
+            val briefTitle = if (classCount > 0) {
+                "☀️ Today: $classCount classes, $reminderCount deadlines"
+            } else {
+                "☀️ Today: $reminderCount deadlines, $importantCount mails"
+            }
 
             val inboxStyle = NotificationCompat.InboxStyle()
-                .setBigContentTitle("Today: $importantCount important, $reminderCount reminders")
+                .setBigContentTitle(briefTitle)
 
-            for (mail in topMails.take(3)) {
-                inboxStyle.addLine("• ${mail.headline}")
+            for (cls in todayClasses.take(2)) {
+                inboxStyle.addLine("🏫 ${cls.courseCode} @ ${cls.timeFormatted} (${cls.room})")
             }
             for (rem in upcomingReminders.take(2)) {
                 inboxStyle.addLine("⏰ ${rem.title}")
+            }
+            for (mail in topMails.take(2)) {
+                inboxStyle.addLine("• ${mail.headline}")
             }
 
             val openAppIntent = Intent(context, MainActivity::class.java).apply {

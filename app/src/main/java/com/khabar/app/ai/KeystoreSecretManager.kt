@@ -29,6 +29,7 @@ class KeystoreSecretManager(context: Context) {
         const val PROVIDER_AUTO = "Auto"
         const val PROVIDER_GEMINI = "Gemini"
         const val PROVIDER_GROQ = "Groq"
+        const val PROVIDER_OPENAI = "OpenAI"
         const val PROVIDER_OPENROUTER = "OpenRouter"
         const val PROVIDER_CLAUDE = "Claude"
         const val PROVIDER_OLLAMA = "Ollama"
@@ -43,6 +44,7 @@ class KeystoreSecretManager(context: Context) {
             provider.contains("auto", ignoreCase = true) -> "auto"
             provider.contains("gemini", ignoreCase = true) -> "gemini"
             provider.contains("groq", ignoreCase = true) -> "groq"
+            provider.contains("openai", ignoreCase = true) -> "openai"
             provider.contains("openrouter", ignoreCase = true) -> "openrouter"
             provider.contains("claude", ignoreCase = true) || provider.contains("anthropic", ignoreCase = true) -> "claude"
             provider.contains("ollama", ignoreCase = true) -> "ollama"
@@ -53,6 +55,7 @@ class KeystoreSecretManager(context: Context) {
             "auto" -> PROVIDER_AUTO
             "gemini" -> PROVIDER_GEMINI
             "groq" -> PROVIDER_GROQ
+            "openai" -> PROVIDER_OPENAI
             "openrouter" -> PROVIDER_OPENROUTER
             "claude" -> PROVIDER_CLAUDE
             "ollama" -> PROVIDER_OLLAMA
@@ -62,6 +65,7 @@ class KeystoreSecretManager(context: Context) {
         fun getProviderWebsiteUrl(provider: String): String = when (normalizeProvider(provider)) {
             "gemini" -> "https://aistudio.google.com/app/apikey"
             "groq" -> "https://console.groq.com/keys"
+            "openai" -> "https://platform.openai.com/api-keys"
             "openrouter" -> "https://openrouter.ai/keys"
             "claude" -> "https://console.anthropic.com/settings/keys"
             "ollama" -> "https://ollama.com"
@@ -71,6 +75,7 @@ class KeystoreSecretManager(context: Context) {
         fun getDefaultBaseUrl(provider: String): String = when (normalizeProvider(provider)) {
             "gemini" -> "https://generativelanguage.googleapis.com/v1beta/openai"
             "groq" -> "https://api.groq.com/openai/v1"
+            "openai" -> "https://api.openai.com/v1"
             "openrouter" -> "https://openrouter.ai/api/v1"
             "claude" -> "https://api.anthropic.com/v1"
             "ollama" -> "http://10.0.2.2:11434/v1"
@@ -78,25 +83,91 @@ class KeystoreSecretManager(context: Context) {
         }
 
         fun getDefaultModel(provider: String): String = when (normalizeProvider(provider)) {
-            "gemini" -> "gemini-2.5-flash"
-            "groq" -> "llama-3.3-70b-versatile"
+            "gemini" -> "gemini-flash-lite-latest"
+            "groq" -> "openai/gpt-oss-120b"
+            "openai" -> "gpt-4o-mini"
             "openrouter" -> "meta-llama/llama-3.3-70b-instruct"
             "claude" -> "claude-3-5-sonnet-20241022"
             "ollama" -> "llama3.2"
-            else -> "llama-3.3-70b-versatile"
+            else -> "openai/gpt-oss-120b"
+        }
+
+        fun getFallbackModels(provider: String): List<String> = when (normalizeProvider(provider)) {
+            "gemini" -> listOf(
+                "gemini-flash-lite-latest",
+                "gemini-3.5-flash-lite",
+                "gemini-3.5-flash",
+                "gemini-2.5-flash"
+            )
+            "groq" -> listOf(
+                "openai/gpt-oss-120b",
+                "llama-3.3-70b-versatile",
+                "llama-3.1-8b-instant"
+            )
+            "openai" -> listOf("gpt-4o-mini", "gpt-4o")
+            "openrouter" -> listOf(
+                "meta-llama/llama-3.3-70b-instruct",
+                "google/gemini-2.0-flash-001",
+                "deepseek/deepseek-r1:free"
+            )
+            else -> listOf("openai/gpt-oss-120b")
+        }
+
+        fun getVisionModel(provider: String): String = when (normalizeProvider(provider)) {
+            "gemini" -> "gemini-flash-lite-latest"
+            "groq" -> "meta-llama/llama-4-scout-17b-16e-instruct"
+            "openai" -> "gpt-4o-mini"
+            "openrouter" -> "google/gemini-2.0-flash-001"
+            "claude" -> "claude-3-5-sonnet-20241022"
+            else -> "gemini-flash-lite-latest"
+        }
+
+        fun isVisionCapableProvider(provider: String): Boolean = when (normalizeProvider(provider)) {
+            "gemini", "openai", "claude", "groq", "openrouter" -> true
+            else -> false
         }
 
         fun detectProvider(key: String): String = when {
             key.startsWith("AIzaSy", ignoreCase = false) || key.startsWith("AQ.", ignoreCase = false) -> PROVIDER_GEMINI
             key.startsWith("gsk_", ignoreCase = false) -> PROVIDER_GROQ
+            key.startsWith("sk-proj-", ignoreCase = false) -> PROVIDER_OPENAI
             key.startsWith("sk-or-", ignoreCase = false) -> PROVIDER_OPENROUTER
             key.startsWith("sk-ant-", ignoreCase = false) -> PROVIDER_CLAUDE
+            key.startsWith("sk-", ignoreCase = false) -> PROVIDER_OPENAI
             else -> PROVIDER_GROQ
         }
     }
 
     init {
         getOrCreateSecretKey()
+        ensureDefaultKeysConfigured()
+    }
+
+    private fun ensureDefaultKeysConfigured() {
+        try {
+            val configKey = com.khabar.app.BuildConfig.AI_API_KEY.trim()
+            if (configKey.isNotBlank()) {
+                val detectedProvider = detectProviderFromKey(configKey)
+                val existingKey = getApiKeyForProvider(detectedProvider)
+                if (existingKey.isBlank() || existingKey.contains("placeholder")) {
+                    saveApiKeyForProvider(detectedProvider, configKey)
+                }
+            }
+
+            // Ensure Groq has active working model default
+            val currentGroqModel = getModelForProvider(PROVIDER_GROQ)
+            if (currentGroqModel.isBlank() || currentGroqModel.contains("llama")) {
+                saveAiSettings(PROVIDER_GROQ, getDefaultBaseUrl(PROVIDER_GROQ), "openai/gpt-oss-120b")
+            }
+
+            // Ensure Gemini has active working model default
+            val currentGeminiModel = getModelForProvider(PROVIDER_GEMINI)
+            if (currentGeminiModel.isBlank() || currentGeminiModel.contains("2.5") || currentGeminiModel.contains("2.0") || currentGeminiModel.contains("1.5") || currentGeminiModel.contains("3.8")) {
+                saveAiSettings(PROVIDER_GEMINI, getDefaultBaseUrl(PROVIDER_GEMINI), "gemini-flash-lite-latest")
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun getOrCreateSecretKey(): SecretKey {
@@ -198,6 +269,7 @@ class KeystoreSecretManager(context: Context) {
     fun hasAnyApiKey(): Boolean {
         return hasApiKeyForProvider(PROVIDER_GEMINI) ||
                 hasApiKeyForProvider(PROVIDER_GROQ) ||
+                hasApiKeyForProvider(PROVIDER_OPENAI) ||
                 hasApiKeyForProvider(PROVIDER_OPENROUTER) ||
                 hasApiKeyForProvider(PROVIDER_CLAUDE) ||
                 getAiApiKey().isNotBlank()
@@ -207,6 +279,7 @@ class KeystoreSecretManager(context: Context) {
         val list = mutableListOf<String>()
         if (hasApiKeyForProvider(PROVIDER_GROQ)) list.add(PROVIDER_GROQ)
         if (hasApiKeyForProvider(PROVIDER_GEMINI)) list.add(PROVIDER_GEMINI)
+        if (hasApiKeyForProvider(PROVIDER_OPENAI)) list.add(PROVIDER_OPENAI)
         if (hasApiKeyForProvider(PROVIDER_OPENROUTER)) list.add(PROVIDER_OPENROUTER)
         if (hasApiKeyForProvider(PROVIDER_CLAUDE)) list.add(PROVIDER_CLAUDE)
         return list
@@ -282,6 +355,11 @@ class KeystoreSecretManager(context: Context) {
 
     fun getAiProvider(): String = prefs.getString(PREF_AI_PROVIDER, PROVIDER_GROQ) ?: PROVIDER_GROQ
 
+    fun isOllamaExplicitlyConfigured(): Boolean {
+        val saved = prefs.getString("ai_base_url_ollama", null)
+        return !saved.isNullOrBlank() && saved != getDefaultBaseUrl(PROVIDER_OLLAMA)
+    }
+
     fun getBaseUrlForProvider(provider: String): String {
         val norm = normalizeProvider(provider)
         val saved = prefs.getString("ai_base_url_$norm", null)
@@ -292,7 +370,16 @@ class KeystoreSecretManager(context: Context) {
     fun getModelForProvider(provider: String): String {
         val norm = normalizeProvider(provider)
         val saved = prefs.getString("ai_model_$norm", null)
-        if (!saved.isNullOrBlank()) return saved
+        // Sanitize: reject truly deprecated/retired model names and reset to default
+        val deprecated = setOf(
+            "gemini-pro", "gemini-1.0-pro", "gpt-4-turbo", "mixtral-8x7b-32768", "llama-3.2-11b-vision-preview"
+        )
+        if (!saved.isNullOrBlank() && saved !in deprecated) return saved
+        // If deprecated model was stored, clear it and use the correct default
+        if (!saved.isNullOrBlank() && saved in deprecated) {
+            val correct = getDefaultModel(provider)
+            prefs.edit().putString("ai_model_$norm", correct).apply()
+        }
         return getDefaultModel(provider)
     }
 

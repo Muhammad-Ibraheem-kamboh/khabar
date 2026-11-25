@@ -98,7 +98,7 @@ class DemoMailSource(private val context: Context) : MailSource {
                 "Accounts Office",
                 "accounts@iba.edu.pk",
                 "Fee challan Fall installment 2, last date without fine in 3 days",
-                "Notice to all students: The last date to submit Fall installment 2 fee without late surcharge is in 3 days. Download challan from https://portal.iba.edu.pk."
+                "Notice to all students: The last date to submit Fall installment 2 fee without late surcharge is in 3 days. Download challan from https://ums.iba.edu.pk/."
             )
             MailCategory.REGISTRATION -> Quad(
                 "Registrar Office",
@@ -148,7 +148,7 @@ class DemoMailSource(private val context: Context) : MailSource {
             receivedAt = now,
             isPreviewOnly = false,
             hasAttachments = false,
-            link = if (body.contains("http")) "https://portal.iba.edu.pk" else null
+            link = if (body.contains("http")) "https://ums.iba.edu.pk/" else null
         )
 
         _updatesFlow.emit(mail)

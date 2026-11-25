@@ -35,3 +35,5 @@ Thumbs.db
 captures/
 .externalNativeBuild/
 .cxx/
+*.db
+

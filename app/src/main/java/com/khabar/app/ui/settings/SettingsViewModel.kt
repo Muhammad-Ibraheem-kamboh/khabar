@@ -29,6 +29,14 @@ data class SettingsUiState(
     val dailyDigestEnabled: Boolean = true,
     val todayBoardEnabled: Boolean = false,
     val focusIbaOnly: Boolean = false,
+    val nextClassWidgetEnabled: Boolean = true,
+    val absenceTrackerEnabled: Boolean = true,
+    val morningBriefingEnabled: Boolean = true,
+    val morningBriefingTime: String = "07:30",
+    val deadlineAlarmEnabled: Boolean = true,
+    val deadlineAlarmLeadMinutes: Int = 120,
+    val offlineAiEnabled: Boolean = true,
+    val campusId: String = com.khabar.app.config.CampusConfig.DEFAULT_CAMPUS_ID,
     val courses: List<CourseEntity> = emptyList(),
     val interests: List<InterestEntity> = emptyList(),
     val isOutlookConfigured: Boolean = false,
@@ -45,25 +53,59 @@ class SettingsViewModel(
 ) : ViewModel() {
 
     val uiState: StateFlow<SettingsUiState> = combine(
-        profileRepository.profileFlow,
-        userPreferences.summaryLanguageFlow,
-        userPreferences.instantModeFlow,
-        userPreferences.fastModeFlow,
-        userPreferences.quietDuringClassFlow,
-        userPreferences.todayBoardNotificationFlow,
-        userPreferences.focusIbaOnlyFlow,
-        profileRepository.coursesFlow,
+        combine(
+            profileRepository.profileFlow,
+            userPreferences.summaryLanguageFlow,
+            userPreferences.instantModeFlow,
+            userPreferences.fastModeFlow
+        ) { profile, lang, instant, fast ->
+            arrayOf(profile, lang, instant, fast)
+        },
+        combine(
+            userPreferences.quietDuringClassFlow,
+            userPreferences.todayBoardNotificationFlow,
+            userPreferences.focusIbaOnlyFlow,
+            userPreferences.nextClassWidgetEnabledFlow
+        ) { quiet, todayBoard, focusIba, nextClass ->
+            arrayOf(quiet, todayBoard, focusIba, nextClass)
+        },
+        combine(
+            userPreferences.absenceTrackerEnabledFlow,
+            userPreferences.morningBriefingEnabledFlow,
+            userPreferences.morningBriefingTimeFlow,
+            userPreferences.deadlineAlarmEnabledFlow
+        ) { absence, morning, briefingTime, alarm ->
+            arrayOf(absence, morning, briefingTime, alarm)
+        },
+        combine(
+            userPreferences.deadlineAlarmLeadMinutesFlow,
+            userPreferences.offlineAiEnabledFlow,
+            userPreferences.campusIdFlow,
+            profileRepository.coursesFlow
+        ) { leadMins, offlineAi, campusId, courses ->
+            arrayOf(leadMins, offlineAi, campusId, courses)
+        },
         profileRepository.interestsFlow
-    ) { values ->
-        val profile = values[0] as? ProfileEntity
-        val summaryLanguage = values[1] as? String ?: "en"
-        val instantMode = values[2] as? Boolean ?: false
-        val fastMode = values[3] as? Boolean ?: false
-        val quietDuringClass = values[4] as? Boolean ?: false
-        val todayBoard = values[5] as? Boolean ?: false
-        val focusIba = values[6] as? Boolean ?: false
-        val courses = values[7] as? List<CourseEntity> ?: emptyList()
-        val interests = values[8] as? List<InterestEntity> ?: emptyList()
+    ) { g1, g2, g3, g4, interests ->
+        val profile = g1[0] as? ProfileEntity
+        val summaryLanguage = g1[1] as? String ?: "en"
+        val instantMode = g1[2] as? Boolean ?: false
+        val fastMode = g1[3] as? Boolean ?: false
+
+        val quietDuringClass = g2[0] as? Boolean ?: false
+        val todayBoard = g2[1] as? Boolean ?: false
+        val focusIba = g2[2] as? Boolean ?: false
+        val nextClass = g2[3] as? Boolean ?: true
+
+        val absence = g3[0] as? Boolean ?: true
+        val morning = g3[1] as? Boolean ?: true
+        val briefingTime = g3[2] as? String ?: "07:30"
+        val alarm = g3[3] as? Boolean ?: true
+
+        val leadMins = g4[0] as? Int ?: 120
+        val offlineAi = g4[1] as? Boolean ?: true
+        val campusId = g4[2] as? String ?: com.khabar.app.config.CampusConfig.DEFAULT_CAMPUS_ID
+        val courses = g4[3] as? List<CourseEntity> ?: emptyList()
 
         val hasOutlook = AppConfig.MS_CLIENT_ID.isNotBlank()
         val hasGmail = AppConfig.GMAIL_ENABLED
@@ -76,9 +118,17 @@ class SettingsViewModel(
             instantModeEnabled = instantMode,
             fastModeEnabled = fastMode,
             quietDuringClass = quietDuringClass,
-            dailyDigestEnabled = true,
+            dailyDigestEnabled = morning,
             todayBoardEnabled = todayBoard,
             focusIbaOnly = focusIba,
+            nextClassWidgetEnabled = nextClass,
+            absenceTrackerEnabled = absence,
+            morningBriefingEnabled = morning,
+            morningBriefingTime = briefingTime,
+            deadlineAlarmEnabled = alarm,
+            deadlineAlarmLeadMinutes = leadMins,
+            offlineAiEnabled = offlineAi,
+            campusId = campusId,
             courses = courses,
             interests = interests,
             isOutlookConfigured = hasOutlook,
@@ -118,7 +168,76 @@ class SettingsViewModel(
     }
 
     fun setDailyDigest(enabled: Boolean) {
-        // Daily digest setting
+        viewModelScope.launch {
+            userPreferences.setMorningBriefingEnabled(enabled)
+        }
+    }
+
+    fun setNextClassWidget(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setNextClassWidgetEnabled(enabled)
+        }
+    }
+
+    fun setAbsenceTracker(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setAbsenceTrackerEnabled(enabled)
+        }
+    }
+
+    fun setMorningBriefing(context: Context, enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setMorningBriefingEnabled(enabled)
+            val profile = profileRepository.getProfile()
+            if (profile != null) {
+                profileRepository.saveProfile(profile.copy(digestEnabled = enabled))
+            }
+            if (enabled) {
+                com.khabar.app.notifications.BootCompletedReceiver.scheduleDailyDigest(
+                    context,
+                    profile?.digestTime ?: "07:30"
+                )
+            } else {
+                com.khabar.app.notifications.BootCompletedReceiver.cancelDailyDigest(context)
+            }
+        }
+    }
+
+    fun setMorningBriefingTime(context: Context, timeStr: String) {
+        viewModelScope.launch {
+            userPreferences.setMorningBriefingTime(timeStr)
+            val profile = profileRepository.getProfile()
+            if (profile != null) {
+                profileRepository.saveProfile(profile.copy(digestTime = timeStr))
+            }
+            if (uiState.value.morningBriefingEnabled) {
+                com.khabar.app.notifications.BootCompletedReceiver.scheduleDailyDigest(context, timeStr)
+            }
+        }
+    }
+
+    fun setDeadlineAlarm(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setDeadlineAlarmEnabled(enabled)
+        }
+    }
+
+    fun setDeadlineAlarmLeadMinutes(minutes: Int) {
+        viewModelScope.launch {
+            userPreferences.setDeadlineAlarmLeadMinutes(minutes)
+        }
+    }
+
+    fun setOfflineAi(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.setOfflineAiEnabled(enabled)
+        }
+    }
+
+    fun setCampus(campusId: String) {
+        viewModelScope.launch {
+            userPreferences.setCampusId(campusId)
+        }
     }
 
     fun setTodayBoard(enabled: Boolean) {

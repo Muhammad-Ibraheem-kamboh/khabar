@@ -20,7 +20,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BatteryAlert
 import androidx.compose.material.icons.rounded.BugReport
@@ -33,6 +35,7 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -40,6 +43,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.khabar.app.config.AppConfig
@@ -73,6 +78,8 @@ fun SettingsScreen(
     onNavigateToEditProfile: () -> Unit,
     onNavigateToAlertSounds: () -> Unit,
     onNavigateToAiSettings: () -> Unit,
+    onNavigateToAiDefectVault: () -> Unit = {},
+    onNavigateToPortalWeb: () -> Unit = {},
     onNavigateToDevTools: () -> Unit,
     onDataDeleted: () -> Unit,
     modifier: Modifier = Modifier
@@ -83,6 +90,10 @@ fun SettingsScreen(
     var slotHelpDialogTitle by remember { mutableStateOf<String?>(null) }
     var slotHelpDialogMessage by remember { mutableStateOf<String?>(null) }
     var showLanguagePicker by remember { mutableStateOf(false) }
+    var showBriefingTimePicker by remember { mutableStateOf(false) }
+    var showLeadTimePicker by remember { mutableStateOf(false) }
+    var showCustomLeadDialog by remember { mutableStateOf(false) }
+    var customLeadText by remember { mutableStateOf("") }
 
     if (slotHelpDialogTitle != null) {
         AlertDialog(
@@ -162,6 +173,284 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showLanguagePicker = false }) {
                     Text("Close", color = KhabarBlue)
+                }
+            }
+        )
+    }
+
+    if (showBriefingTimePicker) {
+        val briefingTimes = listOf(
+            "07:30" to "7:30 AM (Morning - Recommended)",
+            "08:30" to "8:30 AM (Before 9:00 AM class)",
+            "12:30" to "12:30 PM (Midday check-in)",
+            "18:00" to "6:00 PM (Evening recap)",
+            "21:30" to "9:30 PM (Night wrap-up)",
+            "23:00" to "11:00 PM (Late night prep)"
+        )
+        AlertDialog(
+            onDismissRequest = { showBriefingTimePicker = false },
+            title = { Text(text = "Briefing Delivery Time") },
+            text = {
+                Column {
+                    Text(
+                        text = "Choose anytime day or night for your daily lock-screen briefing with classes & deadlines.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = IosSecondaryText
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // CUSTOM TIME PICKER BUTTON (24/7 ANY TIME)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(KhabarBlue.copy(alpha = 0.08f))
+                            .clickable {
+                                showBriefingTimePicker = false
+                                val parts = state.morningBriefingTime.split(":")
+                                val initialHour = parts.getOrNull(0)?.toIntOrNull() ?: 7
+                                val initialMinute = parts.getOrNull(1)?.toIntOrNull() ?: 30
+                                android.app.TimePickerDialog(
+                                    context,
+                                    { _, hourOfDay, minute ->
+                                        val formatted = String.format(java.util.Locale.US, "%02d:%02d", hourOfDay, minute)
+                                        viewModel.setMorningBriefingTime(context, formatted)
+                                    },
+                                    initialHour,
+                                    initialMinute,
+                                    false
+                                ).show()
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.AccessTime,
+                                contentDescription = null,
+                                tint = KhabarBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Pick Any Custom Time (Clock Dial)...",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = KhabarBlue
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "QUICK PRESETS",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = IosSecondaryText
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    briefingTimes.forEach { (timeStr, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setMorningBriefingTime(context, timeStr)
+                                    showBriefingTimePicker = false
+                                }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (state.morningBriefingTime == timeStr) FontWeight.Bold else FontWeight.Normal
+                                )
+                            )
+                            if (state.morningBriefingTime == timeStr) {
+                                Pill(text = "Active", containerColor = KhabarBlue.copy(alpha = 0.12f), contentColor = KhabarBlue)
+                            }
+                        }
+                    }
+
+                    val isCustom = briefingTimes.none { it.first == state.morningBriefingTime }
+                    if (isCustom) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Custom Time: ${formatBriefingTimeDisplay(state.morningBriefingTime)}",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Pill(text = "Active", containerColor = KhabarBlue.copy(alpha = 0.12f), contentColor = KhabarBlue)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showBriefingTimePicker = false }) {
+                    Text("Close", color = IosSecondaryText)
+                }
+            }
+        )
+    }
+
+    if (showLeadTimePicker) {
+        val leadTimes = listOf(
+            15 to "15 minutes before",
+            30 to "30 minutes before",
+            60 to "1 hour before",
+            120 to "2 hours before (Recommended)",
+            240 to "4 hours before",
+            360 to "6 hours before",
+            720 to "12 hours before",
+            1440 to "1 day (24 hrs) before"
+        )
+        AlertDialog(
+            onDismissRequest = { showLeadTimePicker = false },
+            title = { Text(text = "Deadline Alarm Warning") },
+            text = {
+                Column {
+                    Text(
+                        text = "Choose how far in advance Khabar sounds an alarm before an assignment or fee deadline.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = IosSecondaryText
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // CUSTOM LEAD BUTTON
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(KhabarBlue.copy(alpha = 0.08f))
+                            .clickable {
+                                showLeadTimePicker = false
+                                customLeadText = state.deadlineAlarmLeadMinutes.toString()
+                                showCustomLeadDialog = true
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Tune,
+                                contentDescription = null,
+                                tint = KhabarBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Set Custom Minutes / Hours...",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = KhabarBlue
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "POPULAR PRESETS",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = IosSecondaryText
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    leadTimes.forEach { (mins, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setDeadlineAlarmLeadMinutes(mins)
+                                    showLeadTimePicker = false
+                                }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (state.deadlineAlarmLeadMinutes == mins) FontWeight.Bold else FontWeight.Normal
+                                )
+                            )
+                            if (state.deadlineAlarmLeadMinutes == mins) {
+                                Pill(text = "Active", containerColor = KhabarBlue.copy(alpha = 0.12f), contentColor = KhabarBlue)
+                            }
+                        }
+                    }
+
+                    val isCustomLead = leadTimes.none { it.first == state.deadlineAlarmLeadMinutes }
+                    if (isCustomLead) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Custom: ${formatLeadTimeDisplay(state.deadlineAlarmLeadMinutes)}",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Pill(text = "Active", containerColor = KhabarBlue.copy(alpha = 0.12f), contentColor = KhabarBlue)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLeadTimePicker = false }) {
+                    Text("Close", color = IosSecondaryText)
+                }
+            }
+        )
+    }
+
+    if (showCustomLeadDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomLeadDialog = false },
+            title = { Text(text = "Custom Alarm Warning") },
+            text = {
+                Column {
+                    Text(
+                        text = "Enter how many minutes in advance Khabar should sound the alarm (e.g. 45 for 45 mins, 180 for 3 hours):",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = IosSecondaryText
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = customLeadText,
+                        onValueChange = { customLeadText = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Lead time in minutes") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val mins = customLeadText.toIntOrNull()
+                    if (mins != null && mins > 0) {
+                        viewModel.setDeadlineAlarmLeadMinutes(mins)
+                    }
+                    showCustomLeadDialog = false
+                }) {
+                    Text("Save", color = KhabarBlue, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomLeadDialog = false }) {
+                    Text("Cancel", color = IosSecondaryText)
                 }
             }
         )
@@ -284,6 +573,14 @@ fun SettingsScreen(
                             checked = state.fastModeEnabled,
                             onCheckedChange = { viewModel.setFastMode(it) }
                         )
+                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
+                        SettingsRow(
+                            label = "Background Battery Optimization",
+                            value = if (com.khabar.app.util.BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)) "Unrestricted (Best)" else "Optimized (Tap to fix)",
+                            onClick = {
+                                com.khabar.app.util.BatteryOptimizationHelper.openOemBackgroundSettings(context)
+                            }
+                        )
                     }
                 }
             }
@@ -311,6 +608,12 @@ fun SettingsScreen(
                         )
                         HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
                         SettingsRow(
+                            label = "AI Bug & Quality Vault",
+                            value = "Self-Learning Logs",
+                            onClick = onNavigateToAiDefectVault
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
+                        SettingsRow(
                             label = "Alert Sounds",
                             value = "Custom tones",
                             onClick = onNavigateToAlertSounds
@@ -323,9 +626,49 @@ fun SettingsScreen(
                         )
                         HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
                         ToggleRow(
-                            label = "Daily Digest (8:00 AM)",
-                            checked = state.dailyDigestEnabled,
-                            onCheckedChange = { viewModel.setDailyDigest(it) }
+                            label = "Next Class Live Widget",
+                            checked = state.nextClassWidgetEnabled,
+                            onCheckedChange = { viewModel.setNextClassWidget(it) }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
+                        ToggleRow(
+                            label = "5-Absence Limit Tracker",
+                            checked = state.absenceTrackerEnabled,
+                            onCheckedChange = { viewModel.setAbsenceTracker(it) }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
+                        ToggleRow(
+                            label = "Daily Briefing (Classes & Deadlines)",
+                            checked = state.morningBriefingEnabled,
+                            onCheckedChange = { viewModel.setMorningBriefing(context, it) }
+                        )
+                        if (state.morningBriefingEnabled) {
+                            HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
+                            SettingsRow(
+                                label = "Briefing Delivery Time",
+                                value = formatBriefingTimeDisplay(state.morningBriefingTime),
+                                onClick = { showBriefingTimePicker = true }
+                            )
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
+                        ToggleRow(
+                            label = "Deadline Alarm Warnings",
+                            checked = state.deadlineAlarmEnabled,
+                            onCheckedChange = { viewModel.setDeadlineAlarm(it) }
+                        )
+                        if (state.deadlineAlarmEnabled) {
+                            HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
+                            SettingsRow(
+                                label = "Alarm Advance Warning",
+                                value = formatLeadTimeDisplay(state.deadlineAlarmLeadMinutes),
+                                onClick = { showLeadTimePicker = true }
+                            )
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
+                        ToggleRow(
+                            label = "Khabri Offline Intelligence",
+                            checked = state.offlineAiEnabled,
+                            onCheckedChange = { viewModel.setOfflineAi(it) }
                         )
                         HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
                         ToggleRow(
@@ -359,12 +702,9 @@ fun SettingsScreen(
                 ) {
                     Column {
                         SettingsRow(
-                            label = "IBA Student Portal",
-                            value = "Open link",
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(AppConfig.PORTAL_URL))
-                                context.startActivity(intent)
-                            }
+                            label = "University Portals & Web Sync",
+                            value = "UMS & Sakai LMS",
+                            onClick = onNavigateToPortalWeb
                         )
                         HorizontalDivider(modifier = Modifier.padding(start = 16.dp), color = IosDivider, thickness = 0.5.dp)
                         SettingsRow(
@@ -470,5 +810,27 @@ private fun SettingsRow(
                 modifier = Modifier.size(18.dp)
             )
         }
+    }
+}
+
+private fun formatBriefingTimeDisplay(timeStr: String): String {
+    val parts = timeStr.split(":")
+    val h = parts.getOrNull(0)?.toIntOrNull() ?: 7
+    val m = parts.getOrNull(1)?.toIntOrNull() ?: 30
+    val amPm = if (h >= 12) "PM" else "AM"
+    val displayH = when {
+        h == 0 -> 12
+        h > 12 -> h - 12
+        else -> h
+    }
+    return String.format("%d:%02d %s", displayH, m, amPm)
+}
+
+private fun formatLeadTimeDisplay(minutes: Int): String {
+    return when {
+        minutes < 60 -> "$minutes mins before"
+        minutes == 60 -> "1 hour before"
+        minutes % 60 == 0 -> "${minutes / 60} hours before"
+        else -> "$minutes mins before"
     }
 }

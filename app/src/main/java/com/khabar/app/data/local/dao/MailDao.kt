@@ -16,7 +16,7 @@ interface MailDao {
     @Query("SELECT * FROM mails WHERE bucket = :bucket ORDER BY receivedAt DESC")
     fun getMailsByBucketFlow(bucket: String): Flow<List<MailEntity>>
 
-    @Query("SELECT * FROM mails WHERE bucket = 'IMPORTANT' AND read = 0 ORDER BY receivedAt DESC LIMIT 3")
+    @Query("SELECT * FROM mails WHERE (bucket = 'IMPORTANT' OR bucket = 'GOOD_TO_KNOW') AND read = 0 ORDER BY CASE WHEN bucket = 'IMPORTANT' THEN 1 ELSE 2 END, receivedAt DESC LIMIT 5")
     fun getTopImportantUnreadFlow(): Flow<List<MailEntity>>
 
     @Query("SELECT * FROM mails WHERE id = :id LIMIT 1")

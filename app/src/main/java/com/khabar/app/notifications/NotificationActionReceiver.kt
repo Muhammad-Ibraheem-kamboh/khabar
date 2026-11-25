@@ -11,9 +11,12 @@ import android.provider.AlarmClock
 import android.provider.CalendarContract
 import android.widget.Toast
 import com.khabar.app.KhabarApp
+import com.khabar.app.config.AppConfig
+import com.khabar.app.data.local.UserPreferences
 import com.khabar.app.data.local.entities.ReminderEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
@@ -81,12 +84,14 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 val start = intent.getLongExtra(EXTRA_START, System.currentTimeMillis() + 7200000)
                 // 2 hours before event
                 val alarmTimeMs = start - (2 * 3600000)
-                val localTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(alarmTimeMs), ZoneId.systemDefault())
+                val cal = java.util.Calendar.getInstance().apply { timeInMillis = alarmTimeMs }
+                val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                val minute = cal.get(java.util.Calendar.MINUTE)
 
                 val alarmIntent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
                     putExtra(AlarmClock.EXTRA_MESSAGE, title)
-                    putExtra(AlarmClock.EXTRA_HOUR, localTime.hour)
-                    putExtra(AlarmClock.EXTRA_MINUTES, localTime.minute)
+                    putExtra(AlarmClock.EXTRA_HOUR, hour)
+                    putExtra(AlarmClock.EXTRA_MINUTES, minute)
                     putExtra(AlarmClock.EXTRA_SKIP_UI, false)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
@@ -150,8 +155,20 @@ class NotificationActionReceiver : BroadcastReceiver() {
             ACTION_OPEN_PORTAL -> {
                 val app = context.applicationContext as KhabarApp
                 CoroutineScope(Dispatchers.IO).launch {
+                    val prefUrl = try {
+                        app.container.userPreferences.portalUrlFlow.first()
+                    } catch (_: Exception) { null }
                     val profile = app.container.profileRepository.getProfile()
-                    val portalUrl = profile?.portalUrl?.ifBlank { "https://portal.iba.edu.pk" } ?: "https://portal.iba.edu.pk"
+                    val rawUrl = if (!prefUrl.isNullOrBlank() && !UserPreferences.isInvalidOrObsoletePortalUrl(prefUrl)) {
+                        prefUrl
+                    } else {
+                        profile?.portalUrl
+                    }
+                    val portalUrl = if (UserPreferences.isInvalidOrObsoletePortalUrl(rawUrl)) {
+                        AppConfig.PORTAL_URL
+                    } else {
+                        rawUrl ?: AppConfig.PORTAL_URL
+                    }
                     val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl)).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     }

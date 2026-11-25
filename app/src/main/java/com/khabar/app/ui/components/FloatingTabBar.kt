@@ -122,8 +122,10 @@ fun FloatingTabBar(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 if (!isSelected) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onTabSelected(tab)
+                                } else if (tab == MainTab.KHABRI) {
                                     onTabSelected(tab)
                                 }
                             }

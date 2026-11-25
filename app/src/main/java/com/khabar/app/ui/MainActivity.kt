@@ -13,6 +13,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +66,9 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         setContent {
+            LaunchedEffect(Unit) {
+                appContainer.userPreferences.migrateInvalidPortalUrls()
+            }
             val isDark = isSystemInDarkTheme()
             val onboardingDonePref by appContainer.userPreferences.onboardingDoneFlow.collectAsState(initial = null)
             val profile by appContainer.profileRepository.profileFlow.collectAsState(initial = null)
